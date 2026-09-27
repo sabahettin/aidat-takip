@@ -1,0 +1,37 @@
+{{define "instructors_list"}}
+<!DOCTYPE html>
+<html lang="tr">
+<head><title>Eğitmenler · Aidat Takip</title>{{template "head" .}}</head>
+<body>
+{{template "nav" .}}
+<main class="container">
+  <div class="page-header">
+    <h1>Eğitmenler</h1>
+    <a class="btn btn-primary" href="/egitmenler/yeni">+ Yeni Eğitmen</a>
+  </div>
+  <div class="panel">
+    {{if not .Instructors}}
+      <p class="muted">Henüz eğitmen eklenmemiş.</p>
+    {{else}}
+    <table class="table datatable">
+      <thead><tr><th>Ad Soyad</th><th>Telefon</th><th>E-posta</th><th>Grup Sayısı</th><th></th></tr></thead>
+      <tbody>
+        {{range .Instructors}}
+        <tr>
+          <td><a href="/egitmenler/{{.ID}}/duzenle">{{.FullName}}</a></td>
+          <td>{{.Phone}}</td>
+          <td>{{.Email}}</td>
+          <td>{{.GroupCount}}</td>
+          <td>
+            <a href="/egitmenler/{{.ID}}/duzenle" class="btn btn-icon btn-secondary" title="Düzenle" aria-label="Düzenle">{{template "icon-edit" .}}</a>
+          </td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+    {{end}}
+  </div>
+</main>
+</body>
+</html>
+{{end}}

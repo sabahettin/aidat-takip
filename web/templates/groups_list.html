@@ -1,0 +1,34 @@
+{{define "groups_list"}}
+<!DOCTYPE html>
+<html lang="tr">
+<head><title>Gruplar · Aidat Takip</title>{{template "head" .}}</head>
+<body>
+{{template "nav" .}}
+<main class="container">
+  <div class="page-header">
+    <h1>Gruplar</h1>
+    <a class="btn btn-primary" href="/gruplar/yeni">+ Yeni Grup</a>
+  </div>
+  <div class="panel">
+    {{if not .Groups}}
+      <p class="muted">Henüz grup/sınıf oluşturulmamış.</p>
+    {{else}}
+    <table class="table datatable">
+      <thead><tr><th>Ad</th><th>Eğitmen</th><th>Not</th><th>Üye Sayısı</th></tr></thead>
+      <tbody>
+        {{range .Groups}}
+        <tr>
+          <td><a href="/gruplar/{{.ID}}">{{.Name}}</a></td>
+          <td>{{if .HasInstructor}}{{.InstructorName}}{{else}}<span class="muted">—</span>{{end}}</td>
+          <td>{{.Note}}</td>
+          <td>{{.MemberCount}}</td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+    {{end}}
+  </div>
+</main>
+</body>
+</html>
+{{end}}

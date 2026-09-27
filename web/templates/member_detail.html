@@ -1,0 +1,188 @@
+{{define "member_detail"}}
+<!DOCTYPE html>
+<html lang="tr">
+<head><title>{{.Member.FullName}} · Aidat Takip</title>{{template "head" .}}</head>
+<body>
+{{template "nav" .}}
+<main class="container">
+  <div class="page-header">
+    <h1>
+      {{.Member.FullName}}
+      {{if .Member.IsDeleted}}<span class="badge badge-passive">Silindi</span>
+      {{else}}<span class="badge badge-{{.Member.Status}}">{{if eq .Member.Status "active"}}Aktif{{else}}Pasif{{end}}</span>{{end}}
+    </h1>
+    <div class="form-actions">
+      {{if .Member.IsDeleted}}
+      <form method="post" action="/uyeler/{{.Member.ID}}/geri-yukle" style="display:inline">
+        <button type="submit" class="btn btn-secondary btn-sm">Geri Yükle</button>
+      </form>
+      <form method="post" action="/uyeler/{{.Member.ID}}/kalici-sil" style="display:inline" data-confirm="Bu üye ve tüm ödeme geçmişi kalıcı olarak silinecek. Bu işlem geri alınamaz.">
+        <button type="submit" class="btn btn-danger btn-sm">Kalıcı Olarak Sil</button>
+      </form>
+      {{else}}
+      <a href="/uyeler/{{.Member.ID}}/duzenle" class="btn btn-secondary btn-sm">Düzenle</a>
+      <form method="post" action="/uyeler/{{.Member.ID}}/durum" style="display:inline">
+        <button type="submit" class="btn btn-secondary btn-sm">{{if eq .Member.Status "active"}}Pasif Yap{{else}}Aktif Yap{{end}}</button>
+      </form>
+      <form method="post" action="/uyeler/{{.Member.ID}}/sil" style="display:inline" data-confirm="Üye çöp kutusuna taşınacak. İstediğiniz zaman geri yükleyebilirsiniz.">
+        <button type="submit" class="btn btn-danger btn-sm">Sil</button>
+      </form>
+      {{end}}
+    </div>
+  </div>
+  {{if .Member.IsDeleted}}<p class="muted">Bu üye çöp kutusunda. Silindiği tarihte kaydedilmiş tüm bilgiler ve ödeme geçmişi korunuyor.</p>{{end}}
+
+  <div class="grid-12">
+    <div class="col-4">
+
+      <div class="panel">
+        <div class="detail-list">
+          <div><strong>Telefon:</strong> {{.Member.Phone}}</div>
+          <div><strong>E-posta:</strong> {{.Member.Email}}</div>
+          {{if .Member.BirthDate}}<div><strong>Doğum Tarihi:</strong> {{trDate .Member.BirthDate}}</div>{{end}}
+          <div><strong>İlk Katılım:</strong> {{trDate .FirstJoinDate}}</div>
+          <div><strong>Güncel Aidat:</strong> {{if .CurrentFee}}{{money .CurrentFee}}{{else}}<span class="muted">—</span>{{end}}</div>
+          {{if .HasUpcoming}}
+          <div><strong>Planlanan Aidat:</strong> {{money .Upcoming.MonthlyFee}} <span class="muted">({{trDate .Upcoming.StartDate}} itibarıyla)</span></div>
+          {{end}}
+          {{if .Member.HasGuardian}}
+          <div><strong>Veli:</strong> {{.Member.GuardianName}}</div>
+          <div><strong>Veli Telefonu:</strong> {{.Member.GuardianPhone}}</div>
+          {{end}}
+        </div>
+        {{if .Member.Note}}<p class="muted" style="margin:14px 0 0">Not: {{.Member.Note}}</p>{{end}}
+        {{if .WALink}}
+        <p style="margin:16px 0 0"><a href="{{.WALink}}" target="_blank" rel="noopener" class="btn btn-success" style="width:100%; text-align:center;">WhatsApp'tan Hatırlat ({{money .OverdueTotal}} gecikmiş)</a></p>
+        {{end}}
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Üyelik Dönemleri</h2>
+          {{if and (not .Member.IsDeleted) .Periods}}
+          <form method="post" action="/uyeler/{{.Member.ID}}/aidat-guncelle" data-fee-update
+                data-current-fee="{{.CurrentFee}}" data-current-month="{{.CurrentPeriod}}">
+            <input type="hidden" name="effective_month">
+            <input type="hidden" name="monthly_fee">
+            <button type="submit" class="btn btn-primary btn-sm">Aidat Güncelle</button>
+          </form>
+          {{end}}
+        </div>
+        <p class="panel-subtitle">Zam/indirim için <strong>Aidat Güncelle</strong>'yi, ayrılıp geri dönüşte <strong>Yeni Dönem Ekle</strong>'yi kullanın — geçmiş kayıtlar korunur.</p>
+        {{if not .Periods}}
+        <p class="muted">Henüz bir üyelik dönemi yok.</p>
+        {{else}}
+        <div class="item-list">
+          {{range .Periods}}
+          <div class="item-row">
+            <div class="item-main">
+              <div class="item-title">
+                <span>{{trDate .StartDate}}</span>
+                <span class="arrow">→</span>
+                {{if .EndDate}}<span>{{trDate .EndDate}}</span>{{else}}<span class="badge badge-active">Devam Ediyor</span>{{end}}
+                <span class="item-fee">{{money .MonthlyFee}}</span>
+              </div>
+              {{if .Note}}<div class="item-note">{{.Note}}</div>{{end}}
+            </div>
+            <div class="item-actions">
+              <a href="/uyeler/{{$.Member.ID}}/donem/{{.ID}}/duzenle" class="btn btn-icon btn-secondary" title="Düzenle" aria-label="Düzenle">{{template "icon-edit" .}}</a>
+              <form method="post" action="/uyeler/{{$.Member.ID}}/donem/{{.ID}}/sil" data-confirm="Bu dönem silinecek. Bu işlem geri alınamaz.">
+                <button type="submit" class="btn btn-icon btn-danger" title="Sil" aria-label="Sil">{{template "icon-trash" .}}</button>
+              </form>
+            </div>
+          </div>
+          {{end}}
+        </div>
+        {{end}}
+        {{if not .Member.IsDeleted}}
+        <details class="disclosure">
+          <summary class="btn btn-secondary btn-sm">+ Yeni Dönem Ekle</summary>
+          <form method="post" action="/uyeler/{{.Member.ID}}/donem" class="form">
+            <label>Başlangıç Tarihi
+              <input type="date" name="start_date" required>
+            </label>
+            <label>Bitiş Tarihi (opsiyonel)
+              <input type="date" name="end_date">
+            </label>
+            <label>Aylık Aidat (₺)
+              <input type="number" step="0.01" min="0" name="monthly_fee" required>
+            </label>
+            <label>Not (opsiyonel)
+              <input type="text" name="period_note">
+            </label>
+            <button type="submit" class="btn btn-primary">Ekle</button>
+          </form>
+        </details>
+        {{end}}
+      </div>
+
+    </div>
+    <div class="col-8">
+
+      {{if not .Member.IsDeleted}}
+      <div class="panel">
+        <div class="panel-header"><h2>Ödeme Kaydet</h2></div>
+        <p class="panel-subtitle">EFT/havale ile gelen veya elden alınan ödemeyi gördüğünüzde buradan kaydedin.</p>
+        <form method="post" action="/uyeler/{{.Member.ID}}/odeme" class="form form-inline">
+          <label>Dönem
+            <input type="month" name="period" value="{{.CurrentPeriod}}" required>
+          </label>
+          <label>Tutar (₺)
+            <input type="number" step="0.01" min="0" name="amount" value="{{.CurrentFee}}" required>
+          </label>
+          <label>Ödeme Tarihi
+            <input type="date" name="paid_date" required>
+          </label>
+          <label>Ödeme Yöntemi
+            <select name="method">
+              <option value="nakit">Nakit</option>
+              <option value="eft">EFT/Havale</option>
+            </select>
+          </label>
+          <label>Not
+            <input type="text" name="note">
+          </label>
+          <button type="submit" class="btn btn-primary">Kaydet</button>
+        </form>
+      </div>
+      {{end}}
+
+      <div class="panel">
+        <div class="panel-header"><h2>Aidat Geçmişi</h2></div>
+        <table class="table datatable">
+          <thead><tr><th>Dönem</th><th>Tutar</th><th>Durum</th><th>Ödeme Tarihi</th><th>Yöntem</th><th></th></tr></thead>
+          <tbody>
+            {{range .Schedule}}
+            <tr class="{{if .Overdue}}row-overdue{{end}}">
+              <td>{{periodLabel .Period}}</td>
+              <td>{{money .Amount}}</td>
+              <td>
+                {{if .Paid}}<span class="badge badge-active">Ödendi</span>
+                {{else if .Overdue}}<span class="badge badge-passive">Gecikti</span>
+                {{else}}<span class="badge">Bekliyor</span>{{end}}
+              </td>
+              <td>{{if .PaidDate}}{{trDate .PaidDate}}{{else}}—{{end}}</td>
+              <td>{{if .Paid}}{{methodLabel .Method}}{{else}}—{{end}}</td>
+              <td class="actions-cell">
+                <div class="actions-inner">
+                  {{if .Paid}}
+                  <a href="/odeme/{{.PaymentID}}/duzenle" class="btn btn-secondary btn-sm">Düzenle</a>
+                  <form method="post" action="/odeme/{{.PaymentID}}/sil" style="display:inline" data-confirm="Bu ödeme kaydı silinecek.">
+                    <input type="hidden" name="member_id" value="{{$.Member.ID}}">
+                    <button type="submit" class="btn btn-danger btn-sm">Sil</button>
+                  </form>
+                  {{end}}
+                </div>
+              </td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</main>
+</body>
+</html>
+{{end}}

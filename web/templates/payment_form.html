@@ -1,0 +1,38 @@
+{{define "payment_form"}}
+<!DOCTYPE html>
+<html lang="tr">
+<head><title>Ödeme Düzenle · Aidat Takip</title>{{template "head" .}}</head>
+<body>
+{{template "nav" .}}
+<main class="container container-medium">
+  <h1>Ödeme Düzenle</h1>
+  <p class="muted" style="margin-top:-8px">{{.Member.FullName}}</p>
+  {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+  <form method="post" action="{{.FormURL}}" class="form form-grid">
+    <label>Dönem
+      <input type="month" name="period" value="{{.Payment.Period}}" required>
+    </label>
+    <label>Tutar (₺)
+      <input type="number" step="0.01" min="0" name="amount" value="{{.Payment.Amount}}" required>
+    </label>
+    <label>Ödeme Tarihi
+      <input type="date" name="paid_date" value="{{.Payment.PaidDate}}" required>
+    </label>
+    <label>Ödeme Yöntemi
+      <select name="method">
+        <option value="nakit" {{if ne .Payment.Method "eft"}}selected{{end}}>Nakit</option>
+        <option value="eft" {{if eq .Payment.Method "eft"}}selected{{end}}>EFT/Havale</option>
+      </select>
+    </label>
+    <label class="span-2">Not
+      <input type="text" name="note" value="{{.Payment.Note}}">
+    </label>
+    <div class="form-actions span-2">
+      <button type="submit" class="btn btn-primary">Kaydet</button>
+      <a href="/uyeler/{{.Member.ID}}" class="btn btn-secondary">Vazgeç</a>
+    </div>
+  </form>
+</main>
+</body>
+</html>
+{{end}}

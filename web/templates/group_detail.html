@@ -1,0 +1,128 @@
+{{define "group_detail"}}
+<!DOCTYPE html>
+<html lang="tr">
+<head><title>{{.Group.Name}} · Aidat Takip</title>{{template "head" .}}</head>
+<body>
+{{template "nav" .}}
+<main class="container">
+  <div class="page-header">
+    <h1>{{.Group.Name}}</h1>
+    <div class="form-actions">
+      <a href="/gruplar/{{.Group.ID}}/yoklama" class="btn btn-primary btn-sm">Yoklama Al</a>
+      <a href="/gruplar/{{.Group.ID}}/duzenle" class="btn btn-secondary btn-sm">Düzenle</a>
+      <form method="post" action="/gruplar/{{.Group.ID}}/sil" style="display:inline" data-confirm="Bu grup, ders programı ve yoklama kayıtlarıyla birlikte kalıcı olarak silinecek.">
+        <button type="submit" class="btn btn-danger btn-sm">Sil</button>
+      </form>
+    </div>
+  </div>
+  {{if .Group.HasInstructor}}<p class="muted" style="margin-top:-8px">Eğitmen: <a href="/egitmenler/{{.Group.InstructorID}}/duzenle">{{.Group.InstructorName}}</a></p>{{end}}
+  {{if .Group.Note}}<p class="muted" style="margin-top:-8px">{{.Group.Note}}</p>{{end}}
+
+  <div class="grid-12">
+    <div class="col-4">
+
+      <div class="panel">
+        <div class="panel-header"><h2>Ders Programı</h2></div>
+        {{if not .Schedules}}
+        <p class="muted">Henüz ders günü/saati eklenmedi.</p>
+        {{else}}
+        <div class="item-list">
+          {{range .Schedules}}
+          <div class="item-row">
+            <div class="item-main">
+              <div class="item-title">{{.WeekdayLabel}} <span class="arrow">·</span> {{.TimeLabel}}</div>
+            </div>
+            <div class="item-actions">
+              <form method="post" action="/gruplar/{{$.Group.ID}}/ders-saati/{{.ID}}/sil" data-confirm="Bu ders saati silinecek.">
+                <button type="submit" class="btn btn-icon btn-danger" title="Sil" aria-label="Sil">{{template "icon-trash" .}}</button>
+              </form>
+            </div>
+          </div>
+          {{end}}
+        </div>
+        {{end}}
+        <details class="disclosure">
+          <summary class="btn btn-secondary btn-sm">+ Ders Saati Ekle</summary>
+          <form method="post" action="/gruplar/{{.Group.ID}}/ders-saati" class="form">
+            <label>Gün
+              <select name="weekday" required>
+                {{range $.Weekdays}}<option value="{{.}}">{{weekdayLabel .}}</option>{{end}}
+              </select>
+            </label>
+            <label>Başlangıç Saati
+              <input type="time" name="start_time" required>
+            </label>
+            <label>Bitiş Saati (opsiyonel)
+              <input type="time" name="end_time">
+            </label>
+            <button type="submit" class="btn btn-primary">Ekle</button>
+          </form>
+        </details>
+      </div>
+
+    </div>
+    <div class="col-8">
+
+      <div class="panel">
+        <div class="panel-header"><h2>Üyeler ({{len .Roster}})</h2></div>
+        {{if not .Roster}}
+        <p class="muted">Bu gruba henüz üye eklenmedi.</p>
+        {{else}}
+        <div class="item-list">
+          {{range .Roster}}
+          <div class="item-row">
+            <div class="item-main">
+              <div class="item-title"><a href="/uyeler/{{.ID}}">{{.FullName}}</a></div>
+            </div>
+            <div class="item-actions">
+              <form method="post" action="/gruplar/{{$.Group.ID}}/uye/{{.ID}}/cikar" data-confirm="{{.FullName}} bu gruptan çıkarılacak.">
+                <button type="submit" class="btn btn-icon btn-danger" title="Gruptan Çıkar" aria-label="Gruptan Çıkar">{{template "icon-trash" .}}</button>
+              </form>
+            </div>
+          </div>
+          {{end}}
+        </div>
+        {{end}}
+        {{if .AvailableMembers}}
+        <details class="disclosure">
+          <summary class="btn btn-secondary btn-sm">+ Üye Ekle</summary>
+          <form method="post" action="/gruplar/{{.Group.ID}}/uye-ekle" class="form form-inline">
+            <label>Üye
+              <select name="member_id" required>
+                {{range .AvailableMembers}}<option value="{{.ID}}">{{.FullName}}</option>{{end}}
+              </select>
+            </label>
+            <button type="submit" class="btn btn-primary">Ekle</button>
+          </form>
+        </details>
+        {{else}}
+        <p class="muted" style="margin-top:12px">Eklenebilecek başka aktif üye yok.</p>
+        {{end}}
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><h2>Yoklama Geçmişi</h2></div>
+        {{if not .Sessions}}
+        <p class="muted">Henüz yoklama alınmadı. <a href="/gruplar/{{.Group.ID}}/yoklama">Bugün için yoklama alın</a>.</p>
+        {{else}}
+        <table class="table datatable">
+          <thead><tr><th>Tarih</th><th>Katılım</th><th></th></tr></thead>
+          <tbody>
+            {{range .Sessions}}
+            <tr>
+              <td>{{trDate .Date}}</td>
+              <td>{{.PresentCount}} / {{.TotalCount}}</td>
+              <td><a href="/gruplar/{{$.Group.ID}}/yoklama?tarih={{.Date}}" class="btn btn-secondary btn-sm">Görüntüle/Düzenle</a></td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+        {{end}}
+      </div>
+
+    </div>
+  </div>
+</main>
+</body>
+</html>
+{{end}}

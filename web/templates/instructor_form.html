@@ -1,0 +1,57 @@
+{{define "instructor_form"}}
+<!DOCTYPE html>
+<html lang="tr">
+<head><title>{{if .IsNew}}Yeni Eğitmen{{else}}Eğitmen Düzenle{{end}} · Aidat Takip</title>{{template "head" .}}</head>
+<body>
+{{template "nav" .}}
+<main class="container container-medium">
+  <div class="page-header">
+    <h1>{{if .IsNew}}Yeni Eğitmen{{else}}Eğitmen Düzenle{{end}}</h1>
+    {{if not .IsNew}}
+    <form method="post" action="/egitmenler/{{.Instructor.ID}}/sil" data-confirm="Bu eğitmen silinecek. Atanmış olduğu gruplardan eğitmen ataması kaldırılacak.">
+      <button type="submit" class="btn btn-danger btn-sm">Sil</button>
+    </form>
+    {{end}}
+  </div>
+  {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+  <form method="post" action="{{.FormURL}}" class="form">
+    <label>Ad Soyad
+      <input type="text" name="full_name" value="{{.Instructor.FullName}}" required>
+    </label>
+    <label>Telefon (opsiyonel)
+      <input type="text" name="phone" value="{{.Instructor.Phone}}">
+    </label>
+    <label>E-posta (opsiyonel)
+      <input type="email" name="email" value="{{.Instructor.Email}}">
+    </label>
+    <label>Not (opsiyonel)
+      <input type="text" name="note" value="{{.Instructor.Note}}">
+    </label>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Kaydet</button>
+      <a href="/egitmenler" class="btn btn-secondary">Vazgeç</a>
+    </div>
+  </form>
+
+  {{if not .IsNew}}
+  <div class="panel" style="margin-top:24px">
+    <div class="panel-header"><h2>Görevli Olduğu Gruplar</h2></div>
+    {{if not .Groups}}
+    <p class="muted">Bu eğitmen henüz herhangi bir gruba atanmamış.</p>
+    {{else}}
+    <div class="item-list">
+      {{range .Groups}}
+      <div class="item-row">
+        <div class="item-main">
+          <div class="item-title"><a href="/gruplar/{{.ID}}">{{.Name}}</a></div>
+        </div>
+      </div>
+      {{end}}
+    </div>
+    {{end}}
+  </div>
+  {{end}}
+</main>
+</body>
+</html>
+{{end}}

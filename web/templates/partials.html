@@ -1,0 +1,32 @@
+{{define "head"}}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/vendor/toastr.min.css">
+<link rel="stylesheet" href="/static/vendor/dataTables.dataTables.min.css">
+<script src="/static/vendor/jquery.min.js" defer></script>
+<script src="/static/vendor/dataTables.min.js" defer></script>
+<script src="/static/vendor/dataTables.dataTables.min.js" defer></script>
+<script src="/static/vendor/toastr.min.js" defer></script>
+<script src="/static/vendor/sweetalert2.all.min.js" defer></script>
+<script src="/static/app.js" defer></script>
+{{end}}
+
+{{define "icon-edit"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>{{end}}
+{{define "icon-trash"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>{{end}}
+
+{{define "nav"}}
+<header class="topbar">
+  <a class="brand" href="/">Aidat Takip</a>
+  <nav>
+    <a href="/">Panel</a>
+    <a href="/uyeler">Üyeler</a>
+    <a href="/gruplar">Gruplar</a>
+    <a href="/egitmenler">Eğitmenler</a>
+    <a href="/takvim">Takvim</a>
+    <a href="/uyeler/silinmis">Silinen Üyeler</a>
+    <a href="/raporlar">Raporlar</a>
+    <a href="/uyeler/yeni" class="btn btn-primary btn-sm">+ Yeni Üye</a>
+  </nav>
+</header>
+{{end}}

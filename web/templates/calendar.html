@@ -1,0 +1,39 @@
+{{define "calendar"}}
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <title>Takvim · Aidat Takip</title>
+  {{template "head" .}}
+  <script src="/static/vendor/fullcalendar.min.js" defer></script>
+  <script src="/static/vendor/fullcalendar-locale-tr.min.js" defer></script>
+</head>
+<body>
+{{template "nav" .}}
+<main class="container">
+  <div class="page-header">
+    <h1>Takvim</h1>
+  </div>
+  <div class="panel">
+    <div id="calendar"></div>
+  </div>
+</main>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var calendarEl = document.getElementById('calendar');
+  var calendar = new FullCalendar.Calendar(calendarEl, {
+    locale: 'tr',
+    initialView: 'timeGridWeek',
+    headerToolbar: { left: 'title', center: '', right: 'timeGridWeek,timeGridDay,listWeek today prev,next' },
+    allDaySlot: false,
+    slotMinTime: '08:00:00',
+    slotMaxTime: '23:00:00',
+    height: 'auto',
+    firstDay: 1,
+    events: {{.EventsJSON}}
+  });
+  calendar.render();
+});
+</script>
+</body>
+</html>
+{{end}}

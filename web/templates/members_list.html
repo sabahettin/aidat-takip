@@ -1,0 +1,36 @@
+{{define "members_list"}}
+<!DOCTYPE html>
+<html lang="tr">
+<head><title>Üyeler · Aidat Takip</title>{{template "head" .}}</head>
+<body>
+{{template "nav" .}}
+<main class="container">
+  <div class="page-header">
+    <h1>Üyeler</h1>
+    <a class="btn btn-primary" href="/uyeler/yeni">+ Yeni Üye</a>
+  </div>
+  <div class="panel">
+    {{if not .Members}}
+      <p class="muted">Henüz üye eklenmemiş.</p>
+    {{else}}
+    <table class="table datatable">
+      <thead><tr><th>Ad Soyad</th><th>Telefon</th><th>Veli</th><th>Güncel Aidat</th><th>İlk Katılım</th><th>Durum</th></tr></thead>
+      <tbody>
+        {{range .Members}}
+        <tr>
+          <td><a href="/uyeler/{{.ID}}">{{.FullName}}</a></td>
+          <td>{{.Phone}}</td>
+          <td>{{if .HasGuardian}}{{.GuardianName}}{{else}}<span class="muted">—</span>{{end}}</td>
+          <td>{{if .Ongoing}}{{money .Fee}}{{else}}<span class="muted">{{if .Fee}}{{money .Fee}} (geçmiş){{else}}—{{end}}</span>{{end}}</td>
+          <td>{{trDate .JoinDate}}</td>
+          <td><span class="badge badge-{{.Status}}">{{if eq .Status "active"}}Aktif{{else}}Pasif{{end}}</span></td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+    {{end}}
+  </div>
+</main>
+</body>
+</html>
+{{end}}

@@ -1,0 +1,44 @@
+{{define "attendance_form"}}
+<!DOCTYPE html>
+<html lang="tr">
+<head><title>Yoklama · {{.Group.Name}} · Aidat Takip</title>{{template "head" .}}</head>
+<body>
+{{template "nav" .}}
+<main class="container container-medium">
+  <div class="page-header">
+    <h1>Yoklama <span class="muted" style="font-weight:400">· {{.Group.Name}}</span></h1>
+    <a href="/gruplar/{{.Group.ID}}" class="btn btn-secondary btn-sm">Gruba Dön</a>
+  </div>
+
+  <form method="get" action="/gruplar/{{.Group.ID}}/yoklama" class="form" style="margin-bottom:20px">
+    <label>Tarih
+      <input type="date" name="tarih" value="{{.Date}}" onchange="this.form.submit()">
+    </label>
+  </form>
+
+  {{if not .Rows}}
+  <p class="muted">Bu grupta üye yok. Önce gruba üye ekleyin.</p>
+  {{else}}
+  <form method="post" action="/gruplar/{{.Group.ID}}/yoklama" class="form">
+    <input type="hidden" name="session_date" value="{{.Date}}">
+    <div class="item-list">
+      {{range .Rows}}
+      <div class="item-row">
+        <div class="item-main">
+          <label class="attendance-check">
+            <input type="checkbox" name="present" value="{{.Member.ID}}" {{if .Present}}checked{{end}}>
+            <span class="item-title">{{.Member.FullName}}</span>
+          </label>
+        </div>
+      </div>
+      {{end}}
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Yoklamayı Kaydet</button>
+    </div>
+  </form>
+  {{end}}
+</main>
+</body>
+</html>
+{{end}}

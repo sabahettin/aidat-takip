@@ -1,0 +1,36 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Tüm platformlar için derle
+        run: ./build.sh
+
+      - name: Release güncelle (tag latest)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "En Güncel Sürüm"
+          body: |
+            main dalındaki her değişiklikte otomatik olarak yeniden derlenir.
+            İşletim sisteminize uygun dosyayı indirip çalıştırmanız yeterlidir.
+          make_latest: true
+          files: |
+            dist/aidat-takip-windows-amd64.exe
+            dist/aidat-takip-macos-arm64
+            dist/aidat-takip-macos-amd64
+            dist/aidat-takip-linux-amd64
