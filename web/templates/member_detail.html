@@ -35,8 +35,8 @@
   <div class="info-grid">
     <div><strong>Telefon:</strong> {{.Member.Phone}}</div>
     <div><strong>E-posta:</strong> {{.Member.Email}}</div>
-    <div><strong>Katılım:</strong> {{.Member.JoinDate}}</div>
-    {{if .Member.EndDate}}<div><strong>Bitiş:</strong> {{.Member.EndDate}}</div>{{end}}
+    <div><strong>Katılım:</strong> {{trDate .Member.JoinDate}}</div>
+    {{if .Member.EndDate}}<div><strong>Bitiş:</strong> {{trDate .Member.EndDate}}</div>{{end}}
     <div><strong>Aylık Aidat:</strong> {{money .Member.MonthlyFee}}</div>
     {{if .Member.HasGuardian}}
     <div><strong>Veli:</strong> {{.Member.GuardianName}}</div>
@@ -76,7 +76,7 @@
   {{end}}
 
   <h2>Aidat Geçmişi</h2>
-  <table class="table">
+  <table class="table datatable">
     <thead><tr><th>Dönem</th><th>Tutar</th><th>Durum</th><th>Ödeme Tarihi</th><th>Yöntem</th></tr></thead>
     <tbody>
       {{range .Schedule}}
@@ -88,7 +88,7 @@
           {{else if .Overdue}}<span class="badge badge-passive">Gecikti</span>
           {{else}}<span class="badge">Bekliyor</span>{{end}}
         </td>
-        <td>{{.PaidDate}}</td>
+        <td>{{trDate .PaidDate}}</td>
         <td>{{if .Paid}}{{methodLabel .Method}}{{else}}—{{end}}</td>
       </tr>
       {{end}}

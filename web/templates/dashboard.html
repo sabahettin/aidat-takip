@@ -29,7 +29,7 @@
   {{if not .OverdueRows}}
     <p class="muted">Geciken ödeme bulunmuyor. 🎉</p>
   {{else}}
-  <table class="table">
+  <table class="table datatable">
     <thead><tr><th>Üye</th><th>Geciken Aylar</th><th>Toplam Borç</th><th></th></tr></thead>
     <tbody>
       {{range .OverdueRows}}

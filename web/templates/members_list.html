@@ -12,7 +12,7 @@
   {{if not .Members}}
     <p class="muted">Henüz üye eklenmemiş.</p>
   {{else}}
-  <table class="table">
+  <table class="table datatable">
     <thead><tr><th>Ad Soyad</th><th>Telefon</th><th>Veli</th><th>Aylık Aidat</th><th>Katılım</th><th>Durum</th></tr></thead>
     <tbody>
       {{range .Members}}
@@ -21,7 +21,7 @@
         <td>{{.Phone}}</td>
         <td>{{if .HasGuardian}}{{.GuardianName}}{{else}}<span class="muted">—</span>{{end}}</td>
         <td>{{money .MonthlyFee}}</td>
-        <td>{{.JoinDate}}</td>
+        <td>{{trDate .JoinDate}}</td>
         <td><span class="badge badge-{{.Status}}">{{if eq .Status "active"}}Aktif{{else}}Pasif{{end}}</span></td>
       </tr>
       {{end}}

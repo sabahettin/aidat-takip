@@ -36,8 +36,8 @@ body {
 .topbar nav a { color: var(--text); text-decoration: none; font-size: 0.95rem; }
 .topbar nav a:hover { color: var(--primary); }
 
-.container { max-width: 1000px; margin: 0 auto; padding: 24px; }
-.container-narrow { max-width: 560px; }
+.container { width: 100%; margin: 0; padding: 24px 32px; }
+.container-narrow { max-width: 560px; margin: 0 auto; }
 
 .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 

@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"time"
 )
 
 //go:embed web/templates/*.html
@@ -35,6 +36,33 @@ var funcMap = template.FuncMap{
 			return "—"
 		}
 	},
+	"trDate":     trDate,
+	"trDateTime": trDateTime,
+}
+
+// trDate renders a "YYYY-MM-DD" value as "GG.AA.YYYY". Empty or unparsable
+// input is returned as-is (empty stays empty).
+func trDate(s string) string {
+	if s == "" {
+		return ""
+	}
+	t, err := time.Parse("2006-01-02", s)
+	if err != nil {
+		return s
+	}
+	return t.Format("02.01.2006")
+}
+
+// trDateTime renders an RFC3339 timestamp (as stored for deleted_at) as "GG.AA.YYYY SS:DD".
+func trDateTime(s string) string {
+	if s == "" {
+		return ""
+	}
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return s
+	}
+	return t.Format("02.01.2006 15:04")
 }
 
 func dbPath() string {
