@@ -20,7 +20,7 @@ jobs:
       - name: Tüm platformlar için derle
         run: ./build.sh
 
-      - name: "latest" release'ini güncelle
+      - name: Release güncelle (tag latest)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
