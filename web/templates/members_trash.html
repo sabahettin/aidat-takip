@@ -23,12 +23,14 @@
           <td>{{.Phone}}</td>
           <td>{{trDateTime .DeletedAt}}</td>
           <td class="actions-cell">
-            <form method="post" action="/uyeler/{{.ID}}/geri-yukle" style="display:inline">
-              <button type="submit" class="btn btn-secondary btn-sm">Geri Yükle</button>
-            </form>
-            <form method="post" action="/uyeler/{{.ID}}/kalici-sil" style="display:inline" data-confirm="Bu üye ve tüm ödeme geçmişi kalıcı olarak silinecek. Bu işlem geri alınamaz.">
-              <button type="submit" class="btn btn-danger btn-sm">Kalıcı Olarak Sil</button>
-            </form>
+            <div class="actions-inner">
+              <form method="post" action="/uyeler/{{.ID}}/geri-yukle" style="display:inline">
+                <button type="submit" class="btn btn-secondary btn-sm">Geri Yükle</button>
+              </form>
+              <form method="post" action="/uyeler/{{.ID}}/kalici-sil" style="display:inline" data-confirm="Bu üye ve tüm ödeme geçmişi kalıcı olarak silinecek. Bu işlem geri alınamaz.">
+                <button type="submit" class="btn btn-danger btn-sm">Kalıcı Olarak Sil</button>
+              </form>
+            </div>
           </td>
         </tr>
         {{end}}

@@ -117,7 +117,13 @@ h2:first-of-type { margin-top: 24px; }
 .row-overdue:hover { background: #fff0f0 !important; }
 .row-highlight { background: var(--primary-soft); }
 .row-highlight:hover { background: #e4e6fd !important; }
-.actions-cell { display: flex; gap: 8px; flex-wrap: wrap; }
+/* `display: flex` directly on a <td> stops Chrome from stretching an empty
+   cell to the row's full height (it collapses to its own tiny content box
+   instead), which staggers that row's bottom border a few pixels above the
+   rest of the row — very visible once a row has no action buttons. Flex
+   lives on this inner wrapper instead, so the <td> itself stays a normal
+   table-cell (see .actions-cell) and always matches the row's height. */
+.actions-inner { display: flex; gap: 8px; flex-wrap: wrap; }
 
 .badge { display: inline-block; padding: 3px 11px; border-radius: 999px; font-size: 0.76rem; font-weight: 600; background: #eef0f3; color: #374151; }
 .badge-active { background: var(--success-soft); color: #166534; }

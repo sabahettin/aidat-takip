@@ -163,13 +163,15 @@
               <td>{{if .PaidDate}}{{trDate .PaidDate}}{{else}}—{{end}}</td>
               <td>{{if .Paid}}{{methodLabel .Method}}{{else}}—{{end}}</td>
               <td class="actions-cell">
-                {{if .Paid}}
-                <a href="/odeme/{{.PaymentID}}/duzenle" class="btn btn-secondary btn-sm">Düzenle</a>
-                <form method="post" action="/odeme/{{.PaymentID}}/sil" style="display:inline" data-confirm="Bu ödeme kaydı silinecek.">
-                  <input type="hidden" name="member_id" value="{{$.Member.ID}}">
-                  <button type="submit" class="btn btn-danger btn-sm">Sil</button>
-                </form>
-                {{end}}
+                <div class="actions-inner">
+                  {{if .Paid}}
+                  <a href="/odeme/{{.PaymentID}}/duzenle" class="btn btn-secondary btn-sm">Düzenle</a>
+                  <form method="post" action="/odeme/{{.PaymentID}}/sil" style="display:inline" data-confirm="Bu ödeme kaydı silinecek.">
+                    <input type="hidden" name="member_id" value="{{$.Member.ID}}">
+                    <button type="submit" class="btn btn-danger btn-sm">Sil</button>
+                  </form>
+                  {{end}}
+                </div>
               </td>
             </tr>
             {{end}}

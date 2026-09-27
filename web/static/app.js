@@ -117,6 +117,15 @@ document.addEventListener('DOMContentLoaded', function () {
         language: turkish,
         pageLength: 10,
         order: [],
+        // Without this, DataTables writes each column's width to the
+        // <colgroup> as a fractional pixel value (e.g. 146.719px). Chrome
+        // then rounds each column boundary to the pixel grid independently,
+        // which visibly staggers the row's bottom border by a pixel or two
+        // right at that column edge — most noticeable on an empty last
+        // column (e.g. a row with no action buttons yet). Turning autoWidth
+        // off leaves sizing to the browser's own table layout, which keeps
+        // every border in a row on one consistent line.
+        autoWidth: false,
       });
     });
   }

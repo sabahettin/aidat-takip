@@ -41,8 +41,10 @@
           </td>
           <td>{{money .Total}}</td>
           <td class="actions-cell">
-            <a href="/uyeler/{{.Member.ID}}" class="btn btn-secondary btn-sm">Öde</a>
-            {{if .WALink}}<a href="{{.WALink}}" target="_blank" rel="noopener" class="btn btn-success btn-sm">WhatsApp'ta Hatırlat</a>{{end}}
+            <div class="actions-inner">
+              <a href="/uyeler/{{.Member.ID}}" class="btn btn-secondary btn-sm">Öde</a>
+              {{if .WALink}}<a href="{{.WALink}}" target="_blank" rel="noopener" class="btn btn-success btn-sm">WhatsApp'ta Hatırlat</a>{{end}}
+            </div>
           </td>
         </tr>
         {{end}}
