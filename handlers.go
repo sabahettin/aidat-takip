@@ -152,6 +152,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleReports(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
+	currentPeriod := now.Format("2006-01")
 	var periods []string
 	cur := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
 	for i := 0; i < 12; i++ {
@@ -166,20 +167,62 @@ func (s *Server) handleReports(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type row struct {
-		Period string
-		Total  float64
+		Period  string
+		Total   float64
+		Percent float64
+		Current bool
 	}
 	var rows []row
-	var grandTotal float64
+	var grandTotal, maxTotal float64
 	for _, p := range periods {
 		t := totals[p]
 		grandTotal += t
+		if t > maxTotal {
+			maxTotal = t
+		}
 		rows = append(rows, row{Period: p, Total: t})
+	}
+	bestPeriod, bestTotal := "", 0.0
+	for i := range rows {
+		if maxTotal > 0 {
+			rows[i].Percent = rows[i].Total / maxTotal * 100
+		}
+		if rows[i].Period == currentPeriod {
+			rows[i].Current = true
+		}
+		if rows[i].Total > bestTotal {
+			bestTotal, bestPeriod = rows[i].Total, rows[i].Period
+		}
+	}
+	// Chart reads best top-to-bottom as most-recent-first.
+	chartRows := make([]row, len(rows))
+	for i, r := range rows {
+		chartRows[len(rows)-1-i] = r
+	}
+
+	members, err := listMembers(s.db, true)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	var activeCount int
+	for _, m := range members {
+		if m.IsActive() {
+			activeCount++
+		}
 	}
 
 	s.render(w, "reports", map[string]any{
-		"Rows":       rows,
-		"GrandTotal": grandTotal,
+		"Rows":              rows,
+		"ChartRows":         chartRows,
+		"GrandTotal":        grandTotal,
+		"AverageMonthly":    grandTotal / float64(len(rows)),
+		"BestPeriod":        bestPeriod,
+		"BestTotal":         bestTotal,
+		"CurrentMonthTotal": totals[currentPeriod],
+		"CurrentPeriod":     currentPeriod,
+		"ActiveMemberCount": activeCount,
+		"TotalMemberCount":  len(members),
 	})
 }
 

@@ -25,29 +25,31 @@
     </div>
   </div>
 
-  <h2>Ödemesi Geciken Üyeler</h2>
-  {{if not .OverdueRows}}
-    <p class="muted">Geciken ödeme bulunmuyor. 🎉</p>
-  {{else}}
-  <table class="table datatable">
-    <thead><tr><th>Üye</th><th>Geciken Aylar</th><th>Toplam Borç</th><th></th></tr></thead>
-    <tbody>
-      {{range .OverdueRows}}
-      <tr>
-        <td><a href="/uyeler/{{.Member.ID}}">{{.Member.FullName}}</a>{{if .Member.HasGuardian}} <span class="muted">(veli: {{.Member.GuardianName}})</span>{{end}}</td>
-        <td>
-          {{range $i, $p := .Periods}}{{if $i}}, {{end}}{{periodLabel $p.Period}}{{end}}
-        </td>
-        <td>{{money .Total}}</td>
-        <td class="actions-cell">
-          <a href="/uyeler/{{.Member.ID}}" class="btn btn-secondary btn-sm">Öde</a>
-          {{if .WALink}}<a href="{{.WALink}}" target="_blank" rel="noopener" class="btn btn-success btn-sm">WhatsApp'ta Hatırlat</a>{{end}}
-        </td>
-      </tr>
-      {{end}}
-    </tbody>
-  </table>
-  {{end}}
+  <div class="panel">
+    <div class="panel-header"><h2>Ödemesi Geciken Üyeler</h2></div>
+    {{if not .OverdueRows}}
+      <p class="muted">Geciken ödeme bulunmuyor. 🎉</p>
+    {{else}}
+    <table class="table datatable">
+      <thead><tr><th>Üye</th><th>Geciken Aylar</th><th>Toplam Borç</th><th></th></tr></thead>
+      <tbody>
+        {{range .OverdueRows}}
+        <tr>
+          <td><a href="/uyeler/{{.Member.ID}}">{{.Member.FullName}}</a>{{if .Member.HasGuardian}} <span class="muted">(veli: {{.Member.GuardianName}})</span>{{end}}</td>
+          <td>
+            {{range $i, $p := .Periods}}{{if $i}}, {{end}}{{periodLabel $p.Period}}{{end}}
+          </td>
+          <td>{{money .Total}}</td>
+          <td class="actions-cell">
+            <a href="/uyeler/{{.Member.ID}}" class="btn btn-secondary btn-sm">Öde</a>
+            {{if .WALink}}<a href="{{.WALink}}" target="_blank" rel="noopener" class="btn btn-success btn-sm">WhatsApp'ta Hatırlat</a>{{end}}
+          </td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+    {{end}}
+  </div>
 </main>
 </body>
 </html>

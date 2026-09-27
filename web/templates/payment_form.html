@@ -4,11 +4,11 @@
 <head><title>Ödeme Düzenle · Aidat Takip</title>{{template "head" .}}</head>
 <body>
 {{template "nav" .}}
-<main class="container container-narrow">
+<main class="container container-medium">
   <h1>Ödeme Düzenle</h1>
   <p class="muted" style="margin-top:-8px">{{.Member.FullName}}</p>
   {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
-  <form method="post" action="{{.FormURL}}" class="form">
+  <form method="post" action="{{.FormURL}}" class="form form-grid">
     <label>Dönem
       <input type="month" name="period" value="{{.Payment.Period}}" required>
     </label>
@@ -24,10 +24,10 @@
         <option value="eft" {{if eq .Payment.Method "eft"}}selected{{end}}>EFT/Havale</option>
       </select>
     </label>
-    <label>Not
+    <label class="span-2">Not
       <input type="text" name="note" value="{{.Payment.Note}}">
     </label>
-    <div class="form-actions">
+    <div class="form-actions span-2">
       <button type="submit" class="btn btn-primary">Kaydet</button>
       <a href="/uyeler/{{.Member.ID}}" class="btn btn-secondary">Vazgeç</a>
     </div>

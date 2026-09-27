@@ -6,18 +6,58 @@
 {{template "nav" .}}
 <main class="container">
   <h1>Raporlar</h1>
-  <h2>Son 12 Ay Tahsilat</h2>
-  <table class="table datatable">
-    <thead><tr><th>Dönem</th><th>Toplanan</th></tr></thead>
-    <tbody>
-      {{range .Rows}}
-      <tr><td>{{periodLabel .Period}}</td><td>{{money .Total}}</td></tr>
+
+  <div class="cards">
+    <div class="card">
+      <span class="card-label">Bu Ay ({{periodLabel .CurrentPeriod}})</span>
+      <span class="card-value">{{money .CurrentMonthTotal}}</span>
+    </div>
+    <div class="card">
+      <span class="card-label">Son 12 Ay Toplam</span>
+      <span class="card-value">{{money .GrandTotal}}</span>
+    </div>
+    <div class="card">
+      <span class="card-label">Aylık Ortalama</span>
+      <span class="card-value">{{money .AverageMonthly}}</span>
+    </div>
+    <div class="card">
+      <span class="card-label">En İyi Ay</span>
+      <span class="card-value">{{money .BestTotal}}</span>
+      {{if .BestPeriod}}<span class="muted" style="font-size:0.82rem">{{periodLabel .BestPeriod}}</span>{{end}}
+    </div>
+    <div class="card">
+      <span class="card-label">Aktif Üye</span>
+      <span class="card-value">{{.ActiveMemberCount}}<span class="muted" style="font-size:1rem"> / {{.TotalMemberCount}}</span></span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header"><h2>Son 12 Ay Tahsilat Trendi</h2></div>
+    <div class="bar-chart">
+      {{range .ChartRows}}
+      <div class="bar-row {{if .Current}}bar-current{{end}}">
+        <span class="bar-label">{{periodLabel .Period}}</span>
+        <div class="bar-track"><div class="bar-fill" style="width:{{.Percent}}%"></div></div>
+        <span class="bar-value">{{money .Total}}</span>
+      </div>
       {{end}}
-    </tbody>
-    <tfoot>
-      <tr><td><strong>Toplam</strong></td><td><strong>{{money .GrandTotal}}</strong></td></tr>
-    </tfoot>
-  </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header"><h2>Aylık Detay</h2></div>
+    <table class="table datatable">
+      <thead><tr><th>Dönem</th><th>Toplanan</th></tr></thead>
+      <tbody>
+        {{range .Rows}}
+        <tr class="{{if .Current}}row-highlight{{end}}"><td>{{periodLabel .Period}}</td><td>{{money .Total}}</td></tr>
+        {{end}}
+      </tbody>
+      <tfoot>
+        <tr><td><strong>Toplam</strong></td><td><strong>{{money .GrandTotal}}</strong></td></tr>
+      </tfoot>
+    </table>
+  </div>
 </main>
 </body>
 </html>
