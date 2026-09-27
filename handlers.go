@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 )
@@ -28,11 +29,14 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /uyeler", s.handleMembersList)
 	mux.HandleFunc("GET /uyeler/yeni", s.handleMemberNewForm)
 	mux.HandleFunc("POST /uyeler", s.handleMemberCreate)
+	mux.HandleFunc("GET /uyeler/silinmis", s.handleTrashList)
 	mux.HandleFunc("GET /uyeler/{id}", s.handleMemberDetail)
 	mux.HandleFunc("GET /uyeler/{id}/duzenle", s.handleMemberEditForm)
 	mux.HandleFunc("POST /uyeler/{id}/duzenle", s.handleMemberUpdate)
 	mux.HandleFunc("POST /uyeler/{id}/durum", s.handleMemberToggleStatus)
 	mux.HandleFunc("POST /uyeler/{id}/sil", s.handleMemberDelete)
+	mux.HandleFunc("POST /uyeler/{id}/geri-yukle", s.handleMemberRestore)
+	mux.HandleFunc("POST /uyeler/{id}/kalici-sil", s.handleMemberPurge)
 	mux.HandleFunc("POST /uyeler/{id}/odeme", s.handlePaymentCreate)
 	mux.HandleFunc("POST /odeme/{id}/sil", s.handlePaymentDelete)
 	return mux
@@ -48,6 +52,13 @@ func (s *Server) render(w http.ResponseWriter, name string, data any) {
 
 func idFromPath(r *http.Request) (int64, error) {
 	return strconv.ParseInt(r.PathValue("id"), 10, 64)
+}
+
+// redirectWithToast redirects to path, appending query params the front-end
+// reads on load to pop a toastr notification (see web/static/app.js).
+func redirectWithToast(w http.ResponseWriter, r *http.Request, path, message, toastType string) {
+	u := path + "?toast=" + url.QueryEscape(message) + "&toast_type=" + toastType
+	http.Redirect(w, r, u, http.StatusSeeOther)
 }
 
 // ---- Dashboard ----
@@ -218,7 +229,7 @@ func (s *Server) handleMemberCreate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	http.Redirect(w, r, "/uyeler/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
+	redirectWithToast(w, r, "/uyeler/"+strconv.FormatInt(id, 10), "Üye eklendi.", "success")
 }
 
 func (s *Server) handleMemberDetail(w http.ResponseWriter, r *http.Request) {
@@ -298,7 +309,7 @@ func (s *Server) handleMemberUpdate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	http.Redirect(w, r, "/uyeler/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
+	redirectWithToast(w, r, "/uyeler/"+strconv.FormatInt(id, 10), "Değişiklikler kaydedildi.", "success")
 }
 
 func (s *Server) handleMemberToggleStatus(w http.ResponseWriter, r *http.Request) {
@@ -313,14 +324,16 @@ func (s *Server) handleMemberToggleStatus(w http.ResponseWriter, r *http.Request
 		return
 	}
 	newStatus := "passive"
+	label := "Üye pasif yapıldı."
 	if m.Status == "passive" {
 		newStatus = "active"
+		label = "Üye aktif yapıldı."
 	}
 	if err := setMemberStatus(s.db, id, newStatus); err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	http.Redirect(w, r, "/uyeler/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
+	redirectWithToast(w, r, "/uyeler/"+strconv.FormatInt(id, 10), label, "success")
 }
 
 func (s *Server) handleMemberDelete(w http.ResponseWriter, r *http.Request) {
@@ -329,11 +342,48 @@ func (s *Server) handleMemberDelete(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if err := deleteMember(s.db, id); err != nil {
+	if err := softDeleteMember(s.db, id, time.Now().Format(time.RFC3339)); err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	http.Redirect(w, r, "/uyeler", http.StatusSeeOther)
+	redirectWithToast(w, r, "/uyeler", "Üye çöp kutusuna taşındı.", "success")
+}
+
+func (s *Server) handleMemberRestore(w http.ResponseWriter, r *http.Request) {
+	id, err := idFromPath(r)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if err := restoreMember(s.db, id); err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	redirectWithToast(w, r, "/uyeler/"+strconv.FormatInt(id, 10), "Üye geri yüklendi.", "success")
+}
+
+func (s *Server) handleMemberPurge(w http.ResponseWriter, r *http.Request) {
+	id, err := idFromPath(r)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if err := purgeMember(s.db, id); err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	redirectWithToast(w, r, "/uyeler/silinmis", "Üye kalıcı olarak silindi.", "success")
+}
+
+// ---- Trash ----
+
+func (s *Server) handleTrashList(w http.ResponseWriter, r *http.Request) {
+	members, err := listDeletedMembers(s.db)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	s.render(w, "members_trash", map[string]any{"Members": members})
 }
 
 // ---- Payments ----
@@ -374,7 +424,7 @@ func (s *Server) handlePaymentCreate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	http.Redirect(w, r, "/uyeler/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
+	redirectWithToast(w, r, "/uyeler/"+strconv.FormatInt(id, 10), "Ödeme kaydedildi.", "success")
 }
 
 func (s *Server) handlePaymentDelete(w http.ResponseWriter, r *http.Request) {
@@ -388,5 +438,5 @@ func (s *Server) handlePaymentDelete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	http.Redirect(w, r, "/uyeler/"+memberID, http.StatusSeeOther)
+	redirectWithToast(w, r, "/uyeler/"+memberID, "Ödeme kaydı silindi.", "success")
 }

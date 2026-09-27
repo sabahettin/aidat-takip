@@ -2,6 +2,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/vendor/toastr.min.css">
+<script src="/static/vendor/jquery.min.js" defer></script>
+<script src="/static/vendor/toastr.min.js" defer></script>
+<script src="/static/vendor/sweetalert2.all.min.js" defer></script>
+<script src="/static/app.js" defer></script>
 {{end}}
 
 {{define "nav"}}
@@ -10,6 +15,7 @@
   <nav>
     <a href="/">Panel</a>
     <a href="/uyeler">Üyeler</a>
+    <a href="/uyeler/silinmis">Çöp Kutusu</a>
     <a href="/raporlar">Raporlar</a>
     <a href="/uyeler/yeni" class="btn btn-primary btn-sm">+ Yeni Üye</a>
   </nav>

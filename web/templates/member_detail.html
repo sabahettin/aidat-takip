@@ -6,17 +6,31 @@
 {{template "nav" .}}
 <main class="container">
   <div class="page-header">
-    <h1>{{.Member.FullName}} <span class="badge badge-{{.Member.Status}}">{{if eq .Member.Status "active"}}Aktif{{else}}Pasif{{end}}</span></h1>
+    <h1>
+      {{.Member.FullName}}
+      {{if .Member.IsDeleted}}<span class="badge badge-passive">Silindi</span>
+      {{else}}<span class="badge badge-{{.Member.Status}}">{{if eq .Member.Status "active"}}Aktif{{else}}Pasif{{end}}</span>{{end}}
+    </h1>
     <div class="form-actions">
+      {{if .Member.IsDeleted}}
+      <form method="post" action="/uyeler/{{.Member.ID}}/geri-yukle" style="display:inline">
+        <button type="submit" class="btn btn-secondary btn-sm">Geri Yükle</button>
+      </form>
+      <form method="post" action="/uyeler/{{.Member.ID}}/kalici-sil" style="display:inline" data-confirm="Bu üye ve tüm ödeme geçmişi kalıcı olarak silinecek. Bu işlem geri alınamaz.">
+        <button type="submit" class="btn btn-danger btn-sm">Kalıcı Olarak Sil</button>
+      </form>
+      {{else}}
       <a href="/uyeler/{{.Member.ID}}/duzenle" class="btn btn-secondary btn-sm">Düzenle</a>
       <form method="post" action="/uyeler/{{.Member.ID}}/durum" style="display:inline">
         <button type="submit" class="btn btn-secondary btn-sm">{{if eq .Member.Status "active"}}Pasif Yap{{else}}Aktif Yap{{end}}</button>
       </form>
-      <form method="post" action="/uyeler/{{.Member.ID}}/sil" style="display:inline" onsubmit="return confirm('Bu üye ve tüm ödeme kayıtları silinsin mi?');">
+      <form method="post" action="/uyeler/{{.Member.ID}}/sil" style="display:inline" data-confirm="Üye çöp kutusuna taşınacak. İstediğiniz zaman geri yükleyebilirsiniz.">
         <button type="submit" class="btn btn-danger btn-sm">Sil</button>
       </form>
+      {{end}}
     </div>
   </div>
+  {{if .Member.IsDeleted}}<p class="muted">Bu üye çöp kutusunda. Silindiği tarihte kaydedilmiş tüm bilgiler ve ödeme geçmişi korunuyor.</p>{{end}}
 
   <div class="info-grid">
     <div><strong>Telefon:</strong> {{.Member.Phone}}</div>
@@ -35,6 +49,7 @@
   <p><a href="{{.WALink}}" target="_blank" rel="noopener" class="btn btn-success">WhatsApp'tan Hatırlat ({{money .OverdueTotal}} gecikmiş)</a></p>
   {{end}}
 
+  {{if not .Member.IsDeleted}}
   <h2>Ödeme Kaydet</h2>
   <p class="muted" style="margin-top:-8px">EFT/havale ile gelen veya elden alınan ödemeyi gördüğünüzde buradan kaydedin.</p>
   <form method="post" action="/uyeler/{{.Member.ID}}/odeme" class="form form-inline">
@@ -58,6 +73,7 @@
     </label>
     <button type="submit" class="btn btn-primary">Kaydet</button>
   </form>
+  {{end}}
 
   <h2>Aidat Geçmişi</h2>
   <table class="table">

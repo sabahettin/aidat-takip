@@ -14,9 +14,13 @@ type Member struct {
 	Note          string
 	GuardianName  string // opsiyonel: üye reşit değilse veli adı
 	GuardianPhone string // opsiyonel: veli telefonu
+	DeletedAt     string // boş değilse üye çöp kutusundadır (soft delete)
 }
 
 func (m Member) IsActive() bool { return m.Status == "active" }
+
+// IsDeleted reports whether the member has been soft-deleted.
+func (m Member) IsDeleted() bool { return m.DeletedAt != "" }
 
 // HasGuardian reports whether a guardian phone was provided.
 func (m Member) HasGuardian() bool { return m.GuardianPhone != "" }

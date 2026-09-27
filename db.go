@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS members (
 	status TEXT NOT NULL DEFAULT 'active',
 	note TEXT NOT NULL DEFAULT '',
 	guardian_name TEXT NOT NULL DEFAULT '',
-	guardian_phone TEXT NOT NULL DEFAULT ''
+	guardian_phone TEXT NOT NULL DEFAULT '',
+	deleted_at TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS payments (
@@ -61,6 +62,7 @@ func migrateSchema(db *sql.DB) error {
 		{"guardian_name", "ALTER TABLE members ADD COLUMN guardian_name TEXT NOT NULL DEFAULT ''"},
 		{"guardian_phone", "ALTER TABLE members ADD COLUMN guardian_phone TEXT NOT NULL DEFAULT ''"},
 		{"end_date", "ALTER TABLE members ADD COLUMN end_date TEXT NOT NULL DEFAULT ''"},
+		{"deleted_at", "ALTER TABLE members ADD COLUMN deleted_at TEXT NOT NULL DEFAULT ''"},
 	}); err != nil {
 		return err
 	}
@@ -102,10 +104,16 @@ func addMissingColumns(db *sql.DB, table string, alters []struct{ column, ddl st
 	return nil
 }
 
+const memberColumns = "id, full_name, phone, email, join_date, end_date, monthly_fee, status, note, guardian_name, guardian_phone, deleted_at"
+
+func scanMember(row interface{ Scan(dest ...any) error }, m *Member) error {
+	return row.Scan(&m.ID, &m.FullName, &m.Phone, &m.Email, &m.JoinDate, &m.EndDate, &m.MonthlyFee, &m.Status, &m.Note, &m.GuardianName, &m.GuardianPhone, &m.DeletedAt)
+}
+
 func listMembers(db *sql.DB, includePassive bool) ([]Member, error) {
-	q := "SELECT id, full_name, phone, email, join_date, end_date, monthly_fee, status, note, guardian_name, guardian_phone FROM members"
+	q := "SELECT " + memberColumns + " FROM members WHERE deleted_at = ''"
 	if !includePassive {
-		q += " WHERE status = 'active'"
+		q += " AND status = 'active'"
 	}
 	q += " ORDER BY full_name COLLATE NOCASE"
 	rows, err := db.Query(q)
@@ -117,7 +125,26 @@ func listMembers(db *sql.DB, includePassive bool) ([]Member, error) {
 	var members []Member
 	for rows.Next() {
 		var m Member
-		if err := rows.Scan(&m.ID, &m.FullName, &m.Phone, &m.Email, &m.JoinDate, &m.EndDate, &m.MonthlyFee, &m.Status, &m.Note, &m.GuardianName, &m.GuardianPhone); err != nil {
+		if err := scanMember(rows, &m); err != nil {
+			return nil, err
+		}
+		members = append(members, m)
+	}
+	return members, rows.Err()
+}
+
+// listDeletedMembers returns soft-deleted members, most recently deleted first.
+func listDeletedMembers(db *sql.DB) ([]Member, error) {
+	rows, err := db.Query("SELECT " + memberColumns + " FROM members WHERE deleted_at != '' ORDER BY deleted_at DESC")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var members []Member
+	for rows.Next() {
+		var m Member
+		if err := scanMember(rows, &m); err != nil {
 			return nil, err
 		}
 		members = append(members, m)
@@ -127,10 +154,8 @@ func listMembers(db *sql.DB, includePassive bool) ([]Member, error) {
 
 func getMember(db *sql.DB, id int64) (Member, error) {
 	var m Member
-	err := db.QueryRow(
-		"SELECT id, full_name, phone, email, join_date, end_date, monthly_fee, status, note, guardian_name, guardian_phone FROM members WHERE id = ?",
-		id,
-	).Scan(&m.ID, &m.FullName, &m.Phone, &m.Email, &m.JoinDate, &m.EndDate, &m.MonthlyFee, &m.Status, &m.Note, &m.GuardianName, &m.GuardianPhone)
+	row := db.QueryRow("SELECT "+memberColumns+" FROM members WHERE id = ?", id)
+	err := scanMember(row, &m)
 	return m, err
 }
 
@@ -158,7 +183,21 @@ func setMemberStatus(db *sql.DB, id int64, status string) error {
 	return err
 }
 
-func deleteMember(db *sql.DB, id int64) error {
+// softDeleteMember moves a member to the trash without losing their payment history.
+func softDeleteMember(db *sql.DB, id int64, deletedAt string) error {
+	_, err := db.Exec("UPDATE members SET deleted_at = ? WHERE id = ?", deletedAt, id)
+	return err
+}
+
+// restoreMember brings a soft-deleted member back out of the trash.
+func restoreMember(db *sql.DB, id int64) error {
+	_, err := db.Exec("UPDATE members SET deleted_at = '' WHERE id = ?", id)
+	return err
+}
+
+// purgeMember permanently removes a member (and, via cascade, their payments).
+// Only meant to be called from the trash view on an already soft-deleted member.
+func purgeMember(db *sql.DB, id int64) error {
 	_, err := db.Exec("DELETE FROM members WHERE id = ?", id)
 	return err
 }

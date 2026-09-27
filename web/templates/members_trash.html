@@ -1,0 +1,40 @@
+{{define "members_trash"}}
+<!DOCTYPE html>
+<html lang="tr">
+<head><title>Çöp Kutusu · Aidat Takip</title>{{template "head" .}}</head>
+<body>
+{{template "nav" .}}
+<main class="container">
+  <div class="page-header">
+    <h1>Çöp Kutusu</h1>
+    <a class="btn btn-secondary btn-sm" href="/uyeler">Üyelere Dön</a>
+  </div>
+  <p class="muted" style="margin-top:-8px">Silinen üyelerin bilgileri ve ödeme geçmişi burada saklanır. Yanlışlıkla silindiyse geri yükleyebilirsiniz.</p>
+  {{if not .Members}}
+    <p class="muted">Çöp kutusu boş.</p>
+  {{else}}
+  <table class="table">
+    <thead><tr><th>Ad Soyad</th><th>Telefon</th><th>Silinme Tarihi</th><th></th></tr></thead>
+    <tbody>
+      {{range .Members}}
+      <tr>
+        <td><a href="/uyeler/{{.ID}}">{{.FullName}}</a></td>
+        <td>{{.Phone}}</td>
+        <td>{{.DeletedAt}}</td>
+        <td class="actions-cell">
+          <form method="post" action="/uyeler/{{.ID}}/geri-yukle" style="display:inline">
+            <button type="submit" class="btn btn-secondary btn-sm">Geri Yükle</button>
+          </form>
+          <form method="post" action="/uyeler/{{.ID}}/kalici-sil" style="display:inline" data-confirm="Bu üye ve tüm ödeme geçmişi kalıcı olarak silinecek. Bu işlem geri alınamaz.">
+            <button type="submit" class="btn btn-danger btn-sm">Kalıcı Olarak Sil</button>
+          </form>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{end}}
+</main>
+</body>
+</html>
+{{end}}
