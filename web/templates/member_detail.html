@@ -68,25 +68,31 @@
           {{end}}
         </div>
         <p class="panel-subtitle">Zam/indirim için <strong>Aidat Güncelle</strong>'yi, ayrılıp geri dönüşte <strong>Yeni Dönem Ekle</strong>'yi kullanın — geçmiş kayıtlar korunur.</p>
-        <table class="table datatable">
-          <thead><tr><th>Başlangıç</th><th>Bitiş</th><th>Aidat</th><th>Not</th><th></th></tr></thead>
-          <tbody>
-            {{range .Periods}}
-            <tr>
-              <td>{{trDate .StartDate}}</td>
-              <td>{{if .EndDate}}{{trDate .EndDate}}{{else}}<span class="badge badge-active">Devam Ediyor</span>{{end}}</td>
-              <td>{{money .MonthlyFee}}</td>
-              <td>{{.Note}}</td>
-              <td class="actions-cell">
-                <a href="/uyeler/{{$.Member.ID}}/donem/{{.ID}}/duzenle" class="btn btn-secondary btn-sm">Düzenle</a>
-                <form method="post" action="/uyeler/{{$.Member.ID}}/donem/{{.ID}}/sil" style="display:inline" data-confirm="Bu dönem silinecek. Bu işlem geri alınamaz.">
-                  <button type="submit" class="btn btn-danger btn-sm">Sil</button>
-                </form>
-              </td>
-            </tr>
-            {{end}}
-          </tbody>
-        </table>
+        {{if not .Periods}}
+        <p class="muted">Henüz bir üyelik dönemi yok.</p>
+        {{else}}
+        <div class="item-list">
+          {{range .Periods}}
+          <div class="item-row">
+            <div class="item-main">
+              <div class="item-title">
+                <span>{{trDate .StartDate}}</span>
+                <span class="arrow">→</span>
+                {{if .EndDate}}<span>{{trDate .EndDate}}</span>{{else}}<span class="badge badge-active">Devam Ediyor</span>{{end}}
+                <span class="item-fee">{{money .MonthlyFee}}</span>
+              </div>
+              {{if .Note}}<div class="item-note">{{.Note}}</div>{{end}}
+            </div>
+            <div class="item-actions">
+              <a href="/uyeler/{{$.Member.ID}}/donem/{{.ID}}/duzenle" class="btn btn-icon btn-secondary" title="Düzenle" aria-label="Düzenle">{{template "icon-edit" .}}</a>
+              <form method="post" action="/uyeler/{{$.Member.ID}}/donem/{{.ID}}/sil" data-confirm="Bu dönem silinecek. Bu işlem geri alınamaz.">
+                <button type="submit" class="btn btn-icon btn-danger" title="Sil" aria-label="Sil">{{template "icon-trash" .}}</button>
+              </form>
+            </div>
+          </div>
+          {{end}}
+        </div>
+        {{end}}
         {{if not .Member.IsDeleted}}
         <details class="disclosure">
           <summary class="btn btn-secondary btn-sm">+ Yeni Dönem Ekle</summary>
@@ -154,7 +160,7 @@
                 {{else if .Overdue}}<span class="badge badge-passive">Gecikti</span>
                 {{else}}<span class="badge">Bekliyor</span>{{end}}
               </td>
-              <td>{{trDate .PaidDate}}</td>
+              <td>{{if .PaidDate}}{{trDate .PaidDate}}{{else}}—{{end}}</td>
               <td>{{if .Paid}}{{methodLabel .Method}}{{else}}—{{end}}</td>
               <td class="actions-cell">
                 {{if .Paid}}
