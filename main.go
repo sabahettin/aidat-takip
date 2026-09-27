@@ -38,6 +38,7 @@ var funcMap = template.FuncMap{
 	},
 	"trDate":     trDate,
 	"trDateTime": trDateTime,
+	"moneyShort": moneyShort,
 }
 
 // trDate renders a "YYYY-MM-DD" value as "GG.AA.YYYY". Empty or unparsable
@@ -51,6 +52,45 @@ func trDate(s string) string {
 		return s
 	}
 	return t.Format("02.01.2006")
+}
+
+// moneyShort renders an amount as a compact Turkish-formatted integer, e.g.
+// 12500.4 -> "12.500 ₺". Used for chart axis/bar labels, where the full
+// money() format (with kuruş and no thousands separator) is too wide to
+// repeat several times down an axis.
+func moneyShort(v float64) string {
+	n := int64(v + 0.5)
+	neg := n < 0
+	if neg {
+		n = -n
+	}
+	digits := fmt.Sprintf("%d", n)
+	var grouped []byte
+	for i, d := range []byte(digits) {
+		if i > 0 && (len(digits)-i)%3 == 0 {
+			grouped = append(grouped, '.')
+		}
+		grouped = append(grouped, d)
+	}
+	sign := ""
+	if neg {
+		sign = "-"
+	}
+	return sign + string(grouped) + " ₺"
+}
+
+// shortMonthLabel renders a "YYYY-MM" period as a 3-letter Turkish month
+// abbreviation, e.g. "Eyl" — compact enough for 12 side-by-side chart labels.
+func shortMonthLabel(p string) string {
+	months := map[string]string{
+		"01": "Oca", "02": "Şub", "03": "Mar", "04": "Nis",
+		"05": "May", "06": "Haz", "07": "Tem", "08": "Ağu",
+		"09": "Eyl", "10": "Eki", "11": "Kas", "12": "Ara",
+	}
+	if len(p) != 7 {
+		return p
+	}
+	return months[p[5:7]]
 }
 
 // trDateTime renders an RFC3339 timestamp (as stored for deleted_at) as "GG.AA.YYYY SS:DD".

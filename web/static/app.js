@@ -129,4 +129,20 @@ document.addEventListener('DOMContentLoaded', function () {
       });
     });
   }
+
+  // Hover tooltip for the plain-SVG monthly trend chart (reports page).
+  var chartTooltip = document.getElementById('chart-tooltip');
+  if (chartTooltip) {
+    document.querySelectorAll('.chart-bar').forEach(function (bar) {
+      bar.addEventListener('mousemove', function (e) {
+        chartTooltip.textContent = bar.dataset.label + ': ' + bar.dataset.value;
+        chartTooltip.style.left = e.clientX + 14 + 'px';
+        chartTooltip.style.top = e.clientY - 12 + 'px';
+        chartTooltip.classList.add('visible');
+      });
+      bar.addEventListener('mouseleave', function () {
+        chartTooltip.classList.remove('visible');
+      });
+    });
+  }
 });

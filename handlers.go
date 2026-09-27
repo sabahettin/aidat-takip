@@ -150,6 +150,107 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 
 // ---- Reports ----
 
+// Column-chart geometry, in SVG user units. One consistent layout for the
+// last-12-months trend chart; see buildTrendChart.
+const (
+	chartSlotWidth  = 74.0
+	chartBarWidth   = 34.0
+	chartBaselineY  = 190.0
+	chartTopMargin  = 18.0
+	chartMaxBarH    = chartBaselineY - chartTopMargin
+	chartBarRadius  = 4.0
+	chartGridSteps  = 4
+	chartLeftMargin = 8.0
+)
+
+type chartBar struct {
+	X, BarX, BarWidth, CenterX, TopY float64
+	PathD                            string
+	Period                           string
+	Label                            string // short month label under the bar
+	ValueLabel                       string
+	Current                          bool
+	ShowValue                        bool // selective direct label: current + best month only
+}
+
+type chartGridLine struct {
+	Y     float64
+	Label string
+}
+
+type reportsRow struct {
+	Period string
+	Total  float64
+}
+
+// roundedTopBarPath draws a bar whose only rounded corners are the two at
+// the open (top) end — the bottom stays flush on the baseline, per the
+// "4px rounded data-ends anchored to the baseline" mark spec.
+func roundedTopBarPath(x, y, w, h, r float64) string {
+	if h <= 0 {
+		return ""
+	}
+	if r > h/2 {
+		r = h / 2
+	}
+	if r > w/2 {
+		r = w / 2
+	}
+	return fmt.Sprintf(
+		"M%.2f %.2f L%.2f %.2f Q%.2f %.2f %.2f %.2f L%.2f %.2f Q%.2f %.2f %.2f %.2f L%.2f %.2f Z",
+		x, y+h, // bottom-left
+		x, y+r, // up the left edge
+		x, y, x+r, y, // arc into top-left corner
+		x+w-r, y, // across the top
+		x+w, y, x+w, y+r, // arc into top-right corner
+		x+w, y+h, // down the right edge (back to baseline)
+	)
+}
+
+// buildTrendChart lays out a 12-bar column chart (SVG path per bar, gridlines
+// with value labels, short month labels) from oldest to newest.
+func buildTrendChart(rows []reportsRow, currentPeriod string) (bars []chartBar, grid []chartGridLine, width float64) {
+	maxTotal := 0.0
+	bestIdx := -1
+	for i, rr := range rows {
+		if rr.Total > maxTotal {
+			maxTotal = rr.Total
+			bestIdx = i
+		}
+	}
+	width = float64(len(rows))*chartSlotWidth + chartLeftMargin
+	for i, rr := range rows {
+		h := 0.0
+		if maxTotal > 0 {
+			h = rr.Total / maxTotal * chartMaxBarH
+		}
+		x := chartLeftMargin + float64(i)*chartSlotWidth
+		barX := x + (chartSlotWidth-chartBarWidth)/2
+		isCurrent := rr.Period == currentPeriod
+		bars = append(bars, chartBar{
+			X:          x,
+			BarX:       barX,
+			BarWidth:   chartBarWidth,
+			CenterX:    barX + chartBarWidth/2,
+			TopY:       chartBaselineY - h,
+			PathD:      roundedTopBarPath(barX, chartBaselineY-h, chartBarWidth, h, chartBarRadius),
+			Period:     rr.Period,
+			Label:      shortMonthLabel(rr.Period),
+			ValueLabel: moneyShort(rr.Total),
+			Current:    isCurrent,
+			ShowValue:  isCurrent || i == bestIdx,
+		})
+	}
+	for step := 0; step <= chartGridSteps; step++ {
+		frac := float64(step) / chartGridSteps
+		grid = append(grid, chartGridLine{
+			Y:     chartBaselineY - frac*chartMaxBarH,
+			Label: moneyShort(maxTotal * frac),
+		})
+	}
+	return bars, grid, width
+}
+
 func (s *Server) handleReports(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	currentPeriod := now.Format("2006-01")
@@ -166,63 +267,83 @@ func (s *Server) handleReports(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type row struct {
-		Period  string
-		Total   float64
-		Percent float64
-		Current bool
-	}
-	var rows []row
-	var grandTotal, maxTotal float64
+	var rows []reportsRow
+	var grandTotal float64
+	bestPeriod, bestTotal := "", 0.0
 	for _, p := range periods {
 		t := totals[p]
 		grandTotal += t
-		if t > maxTotal {
-			maxTotal = t
+		if t > bestTotal {
+			bestTotal, bestPeriod = t, p
 		}
-		rows = append(rows, row{Period: p, Total: t})
+		rows = append(rows, reportsRow{Period: p, Total: t})
 	}
-	bestPeriod, bestTotal := "", 0.0
-	for i := range rows {
-		if maxTotal > 0 {
-			rows[i].Percent = rows[i].Total / maxTotal * 100
-		}
-		if rows[i].Period == currentPeriod {
-			rows[i].Current = true
-		}
-		if rows[i].Total > bestTotal {
-			bestTotal, bestPeriod = rows[i].Total, rows[i].Period
-		}
-	}
-	// Chart reads best top-to-bottom as most-recent-first.
-	chartRows := make([]row, len(rows))
-	for i, r := range rows {
-		chartRows[len(rows)-1-i] = r
-	}
+	bars, grid, chartWidth := buildTrendChart(rows, currentPeriod)
 
-	members, err := listMembers(s.db, true)
+	nakitTotal, eftTotal, err := paymentTotalsByMethod(s.db, periods)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	var activeCount int
+	nakitPercent, eftPercent := 0.0, 0.0
+	if methodTotal := nakitTotal + eftTotal; methodTotal > 0 {
+		nakitPercent = nakitTotal / methodTotal * 100
+		eftPercent = eftTotal / methodTotal * 100
+	}
+
+	members, err := listMembers(s.db, false) // active only
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	var overdueMemberCount int
+	var overdueTotal float64
 	for _, m := range members {
-		if m.IsActive() {
-			activeCount++
+		periods, err := listPeriodsForMember(s.db, m.ID)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		payments, err := listPaymentsForMember(s.db, m.ID)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		_, due, memberTotal := memberOverdue(periods, payments, now)
+		if len(due) > 0 {
+			overdueMemberCount++
+			overdueTotal += memberTotal
 		}
 	}
 
+	allMembers, err := listMembers(s.db, true)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
 	s.render(w, "reports", map[string]any{
-		"Rows":              rows,
-		"ChartRows":         chartRows,
-		"GrandTotal":        grandTotal,
-		"AverageMonthly":    grandTotal / float64(len(rows)),
-		"BestPeriod":        bestPeriod,
-		"BestTotal":         bestTotal,
-		"CurrentMonthTotal": totals[currentPeriod],
-		"CurrentPeriod":     currentPeriod,
-		"ActiveMemberCount": activeCount,
-		"TotalMemberCount":  len(members),
+		"Rows":               rows,
+		"ChartBars":          bars,
+		"ChartGrid":          grid,
+		"ChartWidth":         chartWidth,
+		"ChartHeight":        chartBaselineY + 22,
+		"ChartSlotWidth":     chartSlotWidth,
+		"ChartBaselineY":     chartBaselineY,
+		"GrandTotal":         grandTotal,
+		"AverageMonthly":     grandTotal / float64(len(rows)),
+		"BestPeriod":         bestPeriod,
+		"BestTotal":          bestTotal,
+		"CurrentMonthTotal":  totals[currentPeriod],
+		"CurrentPeriod":      currentPeriod,
+		"ActiveMemberCount":  len(members),
+		"TotalMemberCount":   len(allMembers),
+		"NakitTotal":         nakitTotal,
+		"EftTotal":           eftTotal,
+		"NakitPercent":       nakitPercent,
+		"EftPercent":         eftPercent,
+		"OverdueMemberCount": overdueMemberCount,
+		"OverdueTotal":       overdueTotal,
 	})
 }
 

@@ -25,6 +25,11 @@
       <span class="card-value">{{money .BestTotal}}</span>
       {{if .BestPeriod}}<span class="muted" style="font-size:0.82rem">{{periodLabel .BestPeriod}}</span>{{end}}
     </div>
+    <div class="card card-warning">
+      <span class="card-label">Gecikmiş Toplam</span>
+      <span class="card-value">{{money .OverdueTotal}}</span>
+      <span class="muted" style="font-size:0.82rem">{{.OverdueMemberCount}} üyede</span>
+    </div>
     <div class="card">
       <span class="card-label">Aktif Üye</span>
       <span class="card-value">{{.ActiveMemberCount}}<span class="muted" style="font-size:1rem"> / {{.TotalMemberCount}}</span></span>
@@ -33,32 +38,63 @@
 
   <div class="panel">
     <div class="panel-header"><h2>Son 12 Ay Tahsilat Trendi</h2></div>
-    <div class="bar-chart">
-      {{range .ChartRows}}
-      <div class="bar-row {{if .Current}}bar-current{{end}}">
-        <span class="bar-label">{{periodLabel .Period}}</span>
-        <div class="bar-track"><div class="bar-fill" style="width:{{.Percent}}%"></div></div>
-        <span class="bar-value">{{money .Total}}</span>
-      </div>
-      {{end}}
+    <p class="panel-subtitle">Bu ay koyu renkle vurgulanır. Bir sütunun üzerine gelerek o ayın tam tutarını görebilirsiniz.</p>
+    <div class="chart-svg-wrap">
+      <svg class="chart-svg" viewBox="0 0 {{.ChartWidth}} {{.ChartHeight}}" preserveAspectRatio="xMinYMin meet" role="img" aria-label="Son 12 ayın tahsilat tutarları">
+        {{range .ChartGrid}}
+        <line class="chart-grid-line" x1="0" y1="{{.Y}}" x2="{{$.ChartWidth}}" y2="{{.Y}}"></line>
+        <text class="chart-grid-label" x="2" y="{{.Y}}" dy="-3">{{.Label}}</text>
+        {{end}}
+        {{range .ChartBars}}
+        <g class="chart-bar" data-label="{{periodLabel .Period}}" data-value="{{.ValueLabel}}">
+          <rect class="chart-bar-hit" x="{{.X}}" y="0" width="{{$.ChartSlotWidth}}" height="{{$.ChartHeight}}"></rect>
+          {{if .PathD}}<path class="chart-bar-fill{{if .Current}} current{{end}}" d="{{.PathD}}"></path>{{end}}
+          {{if .ShowValue}}<text class="chart-value-label" x="{{.CenterX}}" y="{{.TopY}}" dy="-6">{{.ValueLabel}}</text>{{end}}
+          <text class="chart-month-label{{if .Current}} current{{end}}" x="{{.CenterX}}" y="{{$.ChartBaselineY}}" dy="16">{{.Label}}</text>
+        </g>
+        {{end}}
+      </svg>
     </div>
   </div>
 
-  <div class="panel">
-    <div class="panel-header"><h2>Aylık Detay</h2></div>
-    <table class="table datatable">
-      <thead><tr><th>Dönem</th><th>Toplanan</th></tr></thead>
-      <tbody>
-        {{range .Rows}}
-        <tr class="{{if .Current}}row-highlight{{end}}"><td>{{periodLabel .Period}}</td><td>{{money .Total}}</td></tr>
-        {{end}}
-      </tbody>
-      <tfoot>
-        <tr><td><strong>Toplam</strong></td><td><strong>{{money .GrandTotal}}</strong></td></tr>
-      </tfoot>
-    </table>
+  <div class="grid-12">
+    <div class="col-4">
+      <div class="panel">
+        <div class="panel-header"><h2>Ödeme Yöntemi</h2></div>
+        <p class="panel-subtitle">Son 12 ayda tahsil edilen tutarın yönteme göre dağılımı.</p>
+        <div class="bar-chart">
+          <div class="bar-row">
+            <span class="bar-label">Nakit</span>
+            <div class="bar-track"><div class="bar-fill" style="width:{{.NakitPercent}}%"></div></div>
+            <span class="bar-value">{{money .NakitTotal}}</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label">EFT/Havale</span>
+            <div class="bar-track"><div class="bar-fill" style="width:{{.EftPercent}}%"></div></div>
+            <span class="bar-value">{{money .EftTotal}}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-8">
+      <div class="panel">
+        <div class="panel-header"><h2>Aylık Detay</h2></div>
+        <table class="table datatable">
+          <thead><tr><th>Dönem</th><th>Toplanan</th></tr></thead>
+          <tbody>
+            {{range .Rows}}
+            <tr class="{{if eq .Period $.CurrentPeriod}}row-highlight{{end}}"><td>{{periodLabel .Period}}</td><td>{{money .Total}}</td></tr>
+            {{end}}
+          </tbody>
+          <tfoot>
+            <tr><td><strong>Toplam</strong></td><td><strong>{{money .GrandTotal}}</strong></td></tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
   </div>
 </main>
+<div id="chart-tooltip" class="chart-tooltip"></div>
 </body>
 </html>
 {{end}}

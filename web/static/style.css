@@ -234,6 +234,37 @@ h2:first-of-type { margin-top: 24px; }
 .bar-row.bar-current .bar-label,
 .bar-row.bar-current .bar-value { color: var(--primary); }
 
+/* ---- Monthly trend column chart (plain inline SVG, no charting library) ---- */
+.chart-svg-wrap { width: 100%; overflow-x: auto; }
+.chart-svg { display: block; min-width: 640px; width: 100%; height: auto; }
+.chart-grid-line { stroke: var(--border); stroke-width: 1; }
+.chart-grid-label { fill: var(--muted); font-size: 9px; font-family: inherit; }
+.chart-bar-fill { fill: #c7c2f5; transition: fill 0.15s; }
+.chart-bar-fill.current { fill: var(--primary); }
+.chart-bar:hover .chart-bar-fill { fill: #a49bf0; }
+.chart-bar:hover .chart-bar-fill.current { fill: var(--primary-dark); }
+.chart-bar-hit { fill: transparent; cursor: pointer; }
+.chart-month-label { fill: var(--muted); font-size: 10px; text-anchor: middle; font-family: inherit; }
+.chart-month-label.current { fill: var(--primary); font-weight: 700; }
+.chart-value-label { fill: var(--text); font-size: 10px; font-weight: 700; text-anchor: middle; font-family: inherit; }
+
+.chart-tooltip {
+  position: fixed;
+  background: #1e2230;
+  color: #fff;
+  padding: 6px 11px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.12s, transform 0.12s;
+  z-index: 1000;
+  white-space: nowrap;
+}
+.chart-tooltip.visible { opacity: 1; transform: translateY(0); }
+
 /* ---- Compact list for a handful of rows in a narrow panel (e.g. membership
    periods): flexible rows instead of a rigid multi-column table, so long
    notes wrap freely and icon actions never fight the text for space. ---- */

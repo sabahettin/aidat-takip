@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	_ "modernc.org/sqlite"
 )
@@ -435,4 +436,39 @@ func monthlyTotals(db *sql.DB, periods []string) (map[string]float64, error) {
 		totals[period] = sum
 	}
 	return totals, rows.Err()
+}
+
+// paymentTotalsByMethod sums recorded payments across the given periods,
+// split by payment method (cash vs bank transfer).
+func paymentTotalsByMethod(db *sql.DB, periods []string) (nakit, eft float64, err error) {
+	if len(periods) == 0 {
+		return 0, 0, nil
+	}
+	placeholders := strings.Repeat("?,", len(periods))
+	placeholders = placeholders[:len(placeholders)-1]
+	args := make([]any, len(periods))
+	for i, p := range periods {
+		args[i] = p
+	}
+	rows, err := db.Query(
+		"SELECT method, COALESCE(SUM(amount), 0) FROM payments WHERE period IN ("+placeholders+") GROUP BY method",
+		args...,
+	)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var method string
+		var sum float64
+		if err := rows.Scan(&method, &sum); err != nil {
+			return 0, 0, err
+		}
+		if method == "eft" {
+			eft = sum
+		} else {
+			nakit = sum
+		}
+	}
+	return nakit, eft, rows.Err()
 }
