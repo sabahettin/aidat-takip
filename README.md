@@ -55,7 +55,7 @@ Uygulama [Go](https://go.dev) ile yazıldı ve tüm HTML şablonları, statik do
 
 ## Kullanım
 
-1. [Releases](../../releases) sayfasından (veya `dist/` klasöründen) işletim sisteminize uygun dosyayı indirin:
+1. [Releases](../../releases/tag/latest) sayfasından işletim sisteminize uygun dosyayı indirin (her `main`'e yapılan değişiklikte otomatik olarak yeniden derlenir):
    - Windows: `aidat-takip-windows-amd64.exe`
    - macOS (Apple Silicon): `aidat-takip-macos-arm64`
    - macOS (Intel): `aidat-takip-macos-amd64`
