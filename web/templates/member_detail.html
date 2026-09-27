@@ -1,0 +1,67 @@
+{{define "member_detail"}}
+<!DOCTYPE html>
+<html lang="tr">
+<head><title>{{.Member.FullName}} · Aidat Takip</title>{{template "head" .}}</head>
+<body>
+{{template "nav" .}}
+<main class="container">
+  <div class="page-header">
+    <h1>{{.Member.FullName}} <span class="badge badge-{{.Member.Status}}">{{if eq .Member.Status "active"}}Aktif{{else}}Pasif{{end}}</span></h1>
+    <div class="form-actions">
+      <a href="/uyeler/{{.Member.ID}}/duzenle">Düzenle</a>
+      <form method="post" action="/uyeler/{{.Member.ID}}/durum" style="display:inline">
+        <button type="submit" class="link-btn">{{if eq .Member.Status "active"}}Pasif Yap{{else}}Aktif Yap{{end}}</button>
+      </form>
+      <form method="post" action="/uyeler/{{.Member.ID}}/sil" style="display:inline" onsubmit="return confirm('Bu üye ve tüm ödeme kayıtları silinsin mi?');">
+        <button type="submit" class="link-btn link-danger">Sil</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="info-grid">
+    <div><strong>Telefon:</strong> {{.Member.Phone}}</div>
+    <div><strong>E-posta:</strong> {{.Member.Email}}</div>
+    <div><strong>Katılım:</strong> {{.Member.JoinDate}}</div>
+    <div><strong>Aylık Aidat:</strong> {{money .Member.MonthlyFee}}</div>
+  </div>
+  {{if .Member.Note}}<p class="muted">Not: {{.Member.Note}}</p>{{end}}
+
+  <h2>Ödeme Kaydet</h2>
+  <form method="post" action="/uyeler/{{.Member.ID}}/odeme" class="form form-inline">
+    <label>Dönem
+      <input type="month" name="period" value="{{.CurrentPeriod}}" required>
+    </label>
+    <label>Tutar (₺)
+      <input type="number" step="0.01" min="0" name="amount" value="{{.Member.MonthlyFee}}" required>
+    </label>
+    <label>Ödeme Tarihi
+      <input type="date" name="paid_date" required>
+    </label>
+    <label>Not
+      <input type="text" name="note">
+    </label>
+    <button type="submit" class="btn-primary">Kaydet</button>
+  </form>
+
+  <h2>Aidat Geçmişi</h2>
+  <table class="table">
+    <thead><tr><th>Dönem</th><th>Tutar</th><th>Durum</th><th>Ödeme Tarihi</th></tr></thead>
+    <tbody>
+      {{range .Schedule}}
+      <tr class="{{if .Overdue}}row-overdue{{end}}">
+        <td>{{periodLabel .Period}}</td>
+        <td>{{money .Amount}}</td>
+        <td>
+          {{if .Paid}}<span class="badge badge-active">Ödendi</span>
+          {{else if .Overdue}}<span class="badge badge-passive">Gecikti</span>
+          {{else}}<span class="badge">Bekliyor</span>{{end}}
+        </td>
+        <td>{{.PaidDate}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</main>
+</body>
+</html>
+{{end}}

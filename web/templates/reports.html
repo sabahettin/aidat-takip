@@ -1,0 +1,24 @@
+{{define "reports"}}
+<!DOCTYPE html>
+<html lang="tr">
+<head><title>Raporlar · Aidat Takip</title>{{template "head" .}}</head>
+<body>
+{{template "nav" .}}
+<main class="container">
+  <h1>Raporlar</h1>
+  <h2>Son 12 Ay Tahsilat</h2>
+  <table class="table">
+    <thead><tr><th>Dönem</th><th>Toplanan</th></tr></thead>
+    <tbody>
+      {{range .Rows}}
+      <tr><td>{{periodLabel .Period}}</td><td>{{money .Total}}</td></tr>
+      {{end}}
+    </tbody>
+    <tfoot>
+      <tr><td><strong>Toplam</strong></td><td><strong>{{money .GrandTotal}}</strong></td></tr>
+    </tfoot>
+  </table>
+</main>
+</body>
+</html>
+{{end}}

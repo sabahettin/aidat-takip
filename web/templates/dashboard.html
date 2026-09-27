@@ -1,0 +1,51 @@
+{{define "dashboard"}}
+<!DOCTYPE html>
+<html lang="tr">
+<head><title>Panel · Aidat Takip</title>{{template "head" .}}</head>
+<body>
+{{template "nav" .}}
+<main class="container">
+  <h1>Panel</h1>
+  <div class="cards">
+    <div class="card">
+      <span class="card-label">Aktif Üye</span>
+      <span class="card-value">{{.ActiveCount}}</span>
+    </div>
+    <div class="card">
+      <span class="card-label">Pasif Üye</span>
+      <span class="card-value">{{.PassiveCount}}</span>
+    </div>
+    <div class="card">
+      <span class="card-label">Bu Ay Toplanan ({{periodLabel .CurrentPeriod}})</span>
+      <span class="card-value">{{money .CollectedThisMonth}}</span>
+    </div>
+    <div class="card card-warning">
+      <span class="card-label">Geciken Ödeme</span>
+      <span class="card-value">{{.OverdueMemberCount}} üye · {{money .OverdueTotal}}</span>
+    </div>
+  </div>
+
+  <h2>Ödemesi Geciken Üyeler</h2>
+  {{if not .OverdueRows}}
+    <p class="muted">Geciken ödeme bulunmuyor. 🎉</p>
+  {{else}}
+  <table class="table">
+    <thead><tr><th>Üye</th><th>Geciken Aylar</th><th>Toplam Borç</th><th></th></tr></thead>
+    <tbody>
+      {{range .OverdueRows}}
+      <tr>
+        <td><a href="/uyeler/{{.Member.ID}}">{{.Member.FullName}}</a></td>
+        <td>
+          {{range $i, $p := .Periods}}{{if $i}}, {{end}}{{periodLabel $p.Period}}{{end}}
+        </td>
+        <td>{{money .Total}}</td>
+        <td><a href="/uyeler/{{.Member.ID}}">Öde</a></td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{end}}
+</main>
+</body>
+</html>
+{{end}}

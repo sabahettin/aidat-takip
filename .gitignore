@@ -1,0 +1,5 @@
+/dist/
+/aidat-takip
+/aidat-takip.exe
+*.db
+*.db-journal
