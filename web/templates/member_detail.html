@@ -8,12 +8,12 @@
   <div class="page-header">
     <h1>{{.Member.FullName}} <span class="badge badge-{{.Member.Status}}">{{if eq .Member.Status "active"}}Aktif{{else}}Pasif{{end}}</span></h1>
     <div class="form-actions">
-      <a href="/uyeler/{{.Member.ID}}/duzenle">Düzenle</a>
+      <a href="/uyeler/{{.Member.ID}}/duzenle" class="btn btn-secondary btn-sm">Düzenle</a>
       <form method="post" action="/uyeler/{{.Member.ID}}/durum" style="display:inline">
-        <button type="submit" class="link-btn">{{if eq .Member.Status "active"}}Pasif Yap{{else}}Aktif Yap{{end}}</button>
+        <button type="submit" class="btn btn-secondary btn-sm">{{if eq .Member.Status "active"}}Pasif Yap{{else}}Aktif Yap{{end}}</button>
       </form>
       <form method="post" action="/uyeler/{{.Member.ID}}/sil" style="display:inline" onsubmit="return confirm('Bu üye ve tüm ödeme kayıtları silinsin mi?');">
-        <button type="submit" class="link-btn link-danger">Sil</button>
+        <button type="submit" class="btn btn-danger btn-sm">Sil</button>
       </form>
     </div>
   </div>
@@ -22,6 +22,7 @@
     <div><strong>Telefon:</strong> {{.Member.Phone}}</div>
     <div><strong>E-posta:</strong> {{.Member.Email}}</div>
     <div><strong>Katılım:</strong> {{.Member.JoinDate}}</div>
+    {{if .Member.EndDate}}<div><strong>Bitiş:</strong> {{.Member.EndDate}}</div>{{end}}
     <div><strong>Aylık Aidat:</strong> {{money .Member.MonthlyFee}}</div>
     {{if .Member.HasGuardian}}
     <div><strong>Veli:</strong> {{.Member.GuardianName}}</div>
@@ -31,10 +32,11 @@
   {{if .Member.Note}}<p class="muted">Not: {{.Member.Note}}</p>{{end}}
 
   {{if .WALink}}
-  <p><a href="{{.WALink}}" target="_blank" rel="noopener" class="btn-primary wa-link">WhatsApp'tan Hatırlat ({{money .OverdueTotal}} gecikmiş)</a></p>
+  <p><a href="{{.WALink}}" target="_blank" rel="noopener" class="btn btn-success">WhatsApp'tan Hatırlat ({{money .OverdueTotal}} gecikmiş)</a></p>
   {{end}}
 
   <h2>Ödeme Kaydet</h2>
+  <p class="muted" style="margin-top:-8px">EFT/havale ile gelen veya elden alınan ödemeyi gördüğünüzde buradan kaydedin.</p>
   <form method="post" action="/uyeler/{{.Member.ID}}/odeme" class="form form-inline">
     <label>Dönem
       <input type="month" name="period" value="{{.CurrentPeriod}}" required>
@@ -45,15 +47,21 @@
     <label>Ödeme Tarihi
       <input type="date" name="paid_date" required>
     </label>
+    <label>Ödeme Yöntemi
+      <select name="method">
+        <option value="nakit">Nakit</option>
+        <option value="eft">EFT/Havale</option>
+      </select>
+    </label>
     <label>Not
       <input type="text" name="note">
     </label>
-    <button type="submit" class="btn-primary">Kaydet</button>
+    <button type="submit" class="btn btn-primary">Kaydet</button>
   </form>
 
   <h2>Aidat Geçmişi</h2>
   <table class="table">
-    <thead><tr><th>Dönem</th><th>Tutar</th><th>Durum</th><th>Ödeme Tarihi</th></tr></thead>
+    <thead><tr><th>Dönem</th><th>Tutar</th><th>Durum</th><th>Ödeme Tarihi</th><th>Yöntem</th></tr></thead>
     <tbody>
       {{range .Schedule}}
       <tr class="{{if .Overdue}}row-overdue{{end}}">
@@ -65,6 +73,7 @@
           {{else}}<span class="badge">Bekliyor</span>{{end}}
         </td>
         <td>{{.PaidDate}}</td>
+        <td>{{if .Paid}}{{methodLabel .Method}}{{else}}—{{end}}</td>
       </tr>
       {{end}}
     </tbody>

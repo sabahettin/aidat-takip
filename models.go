@@ -8,6 +8,7 @@ type Member struct {
 	Phone         string
 	Email         string
 	JoinDate      string // YYYY-MM-DD
+	EndDate       string // YYYY-MM-DD, opsiyonel: dönemi belirli bir kayıt ise ayrılış/bitiş tarihi
 	MonthlyFee    float64
 	Status        string // "active" | "passive"
 	Note          string
@@ -43,7 +44,16 @@ type Payment struct {
 	Period   string // YYYY-MM
 	Amount   float64
 	PaidDate string // YYYY-MM-DD
+	Method   string // "eft" | "nakit"
 	Note     string
+}
+
+// MethodLabel renders the payment method in Turkish for display.
+func (p Payment) MethodLabel() string {
+	if p.Method == "eft" {
+		return "EFT/Havale"
+	}
+	return "Nakit"
 }
 
 // DuePeriod represents one month of expected fee for a member and whether it was paid.
@@ -52,6 +62,7 @@ type DuePeriod struct {
 	Amount   float64
 	Paid     bool
 	PaidDate string
+	Method   string
 	Overdue  bool
 }
 
@@ -68,14 +79,14 @@ func periodLabelText(p string) string {
 	return months[p[5:7]] + " " + p[:4]
 }
 
-// periodsFromJoinToNow returns "YYYY-MM" strings from joinDate's month up to and including the current month.
-func periodsFromJoinToNow(joinDate string, now time.Time) []string {
+// periodsInRange returns "YYYY-MM" strings from joinDate's month up to and including cutoff's month.
+func periodsInRange(joinDate string, cutoff time.Time) []string {
 	start, err := time.Parse("2006-01-02", joinDate)
 	if err != nil {
 		return nil
 	}
 	cur := time.Date(start.Year(), start.Month(), 1, 0, 0, 0, 0, time.UTC)
-	end := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+	end := time.Date(cutoff.Year(), cutoff.Month(), 1, 0, 0, 0, 0, time.UTC)
 	var periods []string
 	for !cur.After(end) {
 		periods = append(periods, cur.Format("2006-01"))
@@ -85,21 +96,34 @@ func periodsFromJoinToNow(joinDate string, now time.Time) []string {
 }
 
 // buildDueSchedule merges the expected periods for a member with their recorded payments.
+// When the member has an end date in the past, dues are only generated up to that
+// date and the final period counts as overdue once unpaid (the member has left);
+// otherwise the current (ongoing) month is shown as "waiting", not overdue.
 func buildDueSchedule(m Member, payments []Payment, now time.Time) []DuePeriod {
 	paidByPeriod := make(map[string]Payment, len(payments))
 	for _, p := range payments {
 		paidByPeriod[p.Period] = p
 	}
-	currentPeriod := now.Format("2006-01")
+
+	cutoff := now
+	memberEnded := false
+	if m.EndDate != "" {
+		if end, err := time.Parse("2006-01-02", m.EndDate); err == nil && end.Before(now) {
+			cutoff = end
+			memberEnded = true
+		}
+	}
+	cutoffPeriod := cutoff.Format("2006-01")
 
 	var schedule []DuePeriod
-	for _, period := range periodsFromJoinToNow(m.JoinDate, now) {
+	for _, period := range periodsInRange(m.JoinDate, cutoff) {
 		dp := DuePeriod{Period: period, Amount: m.MonthlyFee}
 		if p, ok := paidByPeriod[period]; ok {
 			dp.Paid = true
 			dp.PaidDate = p.PaidDate
 			dp.Amount = p.Amount
-		} else if period < currentPeriod {
+			dp.Method = p.Method
+		} else if period < cutoffPeriod || (period == cutoffPeriod && memberEnded) {
 			dp.Overdue = true
 		}
 		schedule = append(schedule, dp)

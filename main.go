@@ -25,6 +25,16 @@ var funcMap = template.FuncMap{
 		return fmt.Sprintf("%.2f ₺", v)
 	},
 	"periodLabel": periodLabelText,
+	"methodLabel": func(method string) string {
+		switch method {
+		case "eft":
+			return "EFT/Havale"
+		case "nakit":
+			return "Nakit"
+		default:
+			return "—"
+		}
+	},
 }
 
 func dbPath() string {

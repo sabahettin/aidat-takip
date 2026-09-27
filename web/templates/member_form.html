@@ -17,9 +17,13 @@
     <label>E-posta
       <input type="email" name="email" value="{{.Member.Email}}">
     </label>
-    <label>Katılım Tarihi
+    <label>Katılım (Başlangıç) Tarihi
       <input type="date" name="join_date" value="{{.Member.JoinDate}}" required>
     </label>
+    <label>Bitiş Tarihi (opsiyonel)
+      <input type="date" name="end_date" value="{{.Member.EndDate}}">
+    </label>
+    <p class="muted" style="margin:-6px 0 0">Belirli süreli bir kurs/dönem kaydıysa bitiş tarihini girin; aidat borcu sadece bu aralık için otomatik hesaplanır. Süresiz üyelikte boş bırakın.</p>
     <label>Aylık Aidat (₺)
       <input type="number" step="0.01" min="0" name="monthly_fee" value="{{.Member.MonthlyFee}}" required>
     </label>
@@ -37,8 +41,8 @@
       <textarea name="note">{{.Member.Note}}</textarea>
     </label>
     <div class="form-actions">
-      <button type="submit" class="btn-primary">Kaydet</button>
-      <a href="/uyeler">Vazgeç</a>
+      <button type="submit" class="btn btn-primary">Kaydet</button>
+      <a href="/uyeler" class="btn btn-secondary">Vazgeç</a>
     </div>
   </form>
 </main>

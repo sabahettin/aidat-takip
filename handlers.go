@@ -187,11 +187,16 @@ func parseMemberForm(r *http.Request) (Member, error) {
 	if joinDate == "" {
 		joinDate = time.Now().Format("2006-01-02")
 	}
+	endDate := r.FormValue("end_date")
+	if endDate != "" && endDate < joinDate {
+		return Member{}, errors.New("bitiş tarihi başlangıç tarihinden önce olamaz")
+	}
 	return Member{
 		FullName:      name,
 		Phone:         r.FormValue("phone"),
 		Email:         r.FormValue("email"),
 		JoinDate:      joinDate,
+		EndDate:       endDate,
 		MonthlyFee:    fee,
 		Status:        "active",
 		Note:          r.FormValue("note"),
@@ -353,11 +358,16 @@ func (s *Server) handlePaymentCreate(w http.ResponseWriter, r *http.Request) {
 	if paidDate == "" {
 		paidDate = time.Now().Format("2006-01-02")
 	}
+	method := r.FormValue("method")
+	if method != "eft" {
+		method = "nakit"
+	}
 	p := Payment{
 		MemberID: id,
 		Period:   period,
 		Amount:   amount,
 		PaidDate: paidDate,
+		Method:   method,
 		Note:     r.FormValue("note"),
 	}
 	if err := recordPayment(s.db, p); err != nil {

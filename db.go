@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS members (
 	phone TEXT NOT NULL DEFAULT '',
 	email TEXT NOT NULL DEFAULT '',
 	join_date TEXT NOT NULL,
+	end_date TEXT NOT NULL DEFAULT '',
 	monthly_fee REAL NOT NULL DEFAULT 0,
 	status TEXT NOT NULL DEFAULT 'active',
 	note TEXT NOT NULL DEFAULT '',
@@ -27,6 +28,7 @@ CREATE TABLE IF NOT EXISTS payments (
 	period TEXT NOT NULL,
 	amount REAL NOT NULL,
 	paid_date TEXT NOT NULL,
+	method TEXT NOT NULL DEFAULT 'nakit',
 	note TEXT NOT NULL DEFAULT '',
 	UNIQUE(member_id, period)
 );
@@ -55,7 +57,20 @@ func openDB(path string) (*sql.DB, error) {
 // migrateSchema adds columns introduced after the initial release to
 // existing databases created by older versions of the app.
 func migrateSchema(db *sql.DB) error {
-	rows, err := db.Query("PRAGMA table_info(members)")
+	if err := addMissingColumns(db, "members", []struct{ column, ddl string }{
+		{"guardian_name", "ALTER TABLE members ADD COLUMN guardian_name TEXT NOT NULL DEFAULT ''"},
+		{"guardian_phone", "ALTER TABLE members ADD COLUMN guardian_phone TEXT NOT NULL DEFAULT ''"},
+		{"end_date", "ALTER TABLE members ADD COLUMN end_date TEXT NOT NULL DEFAULT ''"},
+	}); err != nil {
+		return err
+	}
+	return addMissingColumns(db, "payments", []struct{ column, ddl string }{
+		{"method", "ALTER TABLE payments ADD COLUMN method TEXT NOT NULL DEFAULT 'nakit'"},
+	})
+}
+
+func addMissingColumns(db *sql.DB, table string, alters []struct{ column, ddl string }) error {
+	rows, err := db.Query("PRAGMA table_info(" + table + ")")
 	if err != nil {
 		return err
 	}
@@ -76,13 +91,6 @@ func migrateSchema(db *sql.DB) error {
 		return err
 	}
 
-	alters := []struct {
-		column string
-		ddl    string
-	}{
-		{"guardian_name", "ALTER TABLE members ADD COLUMN guardian_name TEXT NOT NULL DEFAULT ''"},
-		{"guardian_phone", "ALTER TABLE members ADD COLUMN guardian_phone TEXT NOT NULL DEFAULT ''"},
-	}
 	for _, a := range alters {
 		if existing[a.column] {
 			continue
@@ -95,7 +103,7 @@ func migrateSchema(db *sql.DB) error {
 }
 
 func listMembers(db *sql.DB, includePassive bool) ([]Member, error) {
-	q := "SELECT id, full_name, phone, email, join_date, monthly_fee, status, note, guardian_name, guardian_phone FROM members"
+	q := "SELECT id, full_name, phone, email, join_date, end_date, monthly_fee, status, note, guardian_name, guardian_phone FROM members"
 	if !includePassive {
 		q += " WHERE status = 'active'"
 	}
@@ -109,7 +117,7 @@ func listMembers(db *sql.DB, includePassive bool) ([]Member, error) {
 	var members []Member
 	for rows.Next() {
 		var m Member
-		if err := rows.Scan(&m.ID, &m.FullName, &m.Phone, &m.Email, &m.JoinDate, &m.MonthlyFee, &m.Status, &m.Note, &m.GuardianName, &m.GuardianPhone); err != nil {
+		if err := rows.Scan(&m.ID, &m.FullName, &m.Phone, &m.Email, &m.JoinDate, &m.EndDate, &m.MonthlyFee, &m.Status, &m.Note, &m.GuardianName, &m.GuardianPhone); err != nil {
 			return nil, err
 		}
 		members = append(members, m)
@@ -120,16 +128,16 @@ func listMembers(db *sql.DB, includePassive bool) ([]Member, error) {
 func getMember(db *sql.DB, id int64) (Member, error) {
 	var m Member
 	err := db.QueryRow(
-		"SELECT id, full_name, phone, email, join_date, monthly_fee, status, note, guardian_name, guardian_phone FROM members WHERE id = ?",
+		"SELECT id, full_name, phone, email, join_date, end_date, monthly_fee, status, note, guardian_name, guardian_phone FROM members WHERE id = ?",
 		id,
-	).Scan(&m.ID, &m.FullName, &m.Phone, &m.Email, &m.JoinDate, &m.MonthlyFee, &m.Status, &m.Note, &m.GuardianName, &m.GuardianPhone)
+	).Scan(&m.ID, &m.FullName, &m.Phone, &m.Email, &m.JoinDate, &m.EndDate, &m.MonthlyFee, &m.Status, &m.Note, &m.GuardianName, &m.GuardianPhone)
 	return m, err
 }
 
 func createMember(db *sql.DB, m Member) (int64, error) {
 	res, err := db.Exec(
-		"INSERT INTO members (full_name, phone, email, join_date, monthly_fee, status, note, guardian_name, guardian_phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		m.FullName, m.Phone, m.Email, m.JoinDate, m.MonthlyFee, m.Status, m.Note, m.GuardianName, m.GuardianPhone,
+		"INSERT INTO members (full_name, phone, email, join_date, end_date, monthly_fee, status, note, guardian_name, guardian_phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		m.FullName, m.Phone, m.Email, m.JoinDate, m.EndDate, m.MonthlyFee, m.Status, m.Note, m.GuardianName, m.GuardianPhone,
 	)
 	if err != nil {
 		return 0, err
@@ -139,8 +147,8 @@ func createMember(db *sql.DB, m Member) (int64, error) {
 
 func updateMember(db *sql.DB, m Member) error {
 	_, err := db.Exec(
-		"UPDATE members SET full_name = ?, phone = ?, email = ?, join_date = ?, monthly_fee = ?, note = ?, guardian_name = ?, guardian_phone = ? WHERE id = ?",
-		m.FullName, m.Phone, m.Email, m.JoinDate, m.MonthlyFee, m.Note, m.GuardianName, m.GuardianPhone, m.ID,
+		"UPDATE members SET full_name = ?, phone = ?, email = ?, join_date = ?, end_date = ?, monthly_fee = ?, note = ?, guardian_name = ?, guardian_phone = ? WHERE id = ?",
+		m.FullName, m.Phone, m.Email, m.JoinDate, m.EndDate, m.MonthlyFee, m.Note, m.GuardianName, m.GuardianPhone, m.ID,
 	)
 	return err
 }
@@ -157,7 +165,7 @@ func deleteMember(db *sql.DB, id int64) error {
 
 func listPaymentsForMember(db *sql.DB, memberID int64) ([]Payment, error) {
 	rows, err := db.Query(
-		"SELECT id, member_id, period, amount, paid_date, note FROM payments WHERE member_id = ? ORDER BY period",
+		"SELECT id, member_id, period, amount, paid_date, method, note FROM payments WHERE member_id = ? ORDER BY period",
 		memberID,
 	)
 	if err != nil {
@@ -168,7 +176,7 @@ func listPaymentsForMember(db *sql.DB, memberID int64) ([]Payment, error) {
 	var payments []Payment
 	for rows.Next() {
 		var p Payment
-		if err := rows.Scan(&p.ID, &p.MemberID, &p.Period, &p.Amount, &p.PaidDate, &p.Note); err != nil {
+		if err := rows.Scan(&p.ID, &p.MemberID, &p.Period, &p.Amount, &p.PaidDate, &p.Method, &p.Note); err != nil {
 			return nil, err
 		}
 		payments = append(payments, p)
@@ -178,9 +186,9 @@ func listPaymentsForMember(db *sql.DB, memberID int64) ([]Payment, error) {
 
 func recordPayment(db *sql.DB, p Payment) error {
 	_, err := db.Exec(
-		`INSERT INTO payments (member_id, period, amount, paid_date, note) VALUES (?, ?, ?, ?, ?)
-		 ON CONFLICT(member_id, period) DO UPDATE SET amount = excluded.amount, paid_date = excluded.paid_date, note = excluded.note`,
-		p.MemberID, p.Period, p.Amount, p.PaidDate, p.Note,
+		`INSERT INTO payments (member_id, period, amount, paid_date, method, note) VALUES (?, ?, ?, ?, ?, ?)
+		 ON CONFLICT(member_id, period) DO UPDATE SET amount = excluded.amount, paid_date = excluded.paid_date, method = excluded.method, note = excluded.note`,
+		p.MemberID, p.Period, p.Amount, p.PaidDate, p.Method, p.Note,
 	)
 	return err
 }

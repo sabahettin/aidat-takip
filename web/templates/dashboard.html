@@ -39,9 +39,9 @@
           {{range $i, $p := .Periods}}{{if $i}}, {{end}}{{periodLabel $p.Period}}{{end}}
         </td>
         <td>{{money .Total}}</td>
-        <td>
-          <a href="/uyeler/{{.Member.ID}}">Öde</a>
-          {{if .WALink}} · <a href="{{.WALink}}" target="_blank" rel="noopener" class="wa-link">WhatsApp'ta Hatırlat</a>{{end}}
+        <td class="actions-cell">
+          <a href="/uyeler/{{.Member.ID}}" class="btn btn-secondary btn-sm">Öde</a>
+          {{if .WALink}}<a href="{{.WALink}}" target="_blank" rel="noopener" class="btn btn-success btn-sm">WhatsApp'ta Hatırlat</a>{{end}}
         </td>
       </tr>
       {{end}}
