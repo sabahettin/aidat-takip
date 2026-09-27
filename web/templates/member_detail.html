@@ -23,8 +23,16 @@
     <div><strong>E-posta:</strong> {{.Member.Email}}</div>
     <div><strong>Katılım:</strong> {{.Member.JoinDate}}</div>
     <div><strong>Aylık Aidat:</strong> {{money .Member.MonthlyFee}}</div>
+    {{if .Member.HasGuardian}}
+    <div><strong>Veli:</strong> {{.Member.GuardianName}}</div>
+    <div><strong>Veli Telefonu:</strong> {{.Member.GuardianPhone}}</div>
+    {{end}}
   </div>
   {{if .Member.Note}}<p class="muted">Not: {{.Member.Note}}</p>{{end}}
+
+  {{if .WALink}}
+  <p><a href="{{.WALink}}" target="_blank" rel="noopener" class="btn-primary wa-link">WhatsApp'tan Hatırlat ({{money .OverdueTotal}} gecikmiş)</a></p>
+  {{end}}
 
   <h2>Ödeme Kaydet</h2>
   <form method="post" action="/uyeler/{{.Member.ID}}/odeme" class="form form-inline">

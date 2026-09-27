@@ -24,17 +24,7 @@ var funcMap = template.FuncMap{
 	"money": func(v float64) string {
 		return fmt.Sprintf("%.2f ₺", v)
 	},
-	"periodLabel": func(p string) string {
-		months := map[string]string{
-			"01": "Ocak", "02": "Şubat", "03": "Mart", "04": "Nisan",
-			"05": "Mayıs", "06": "Haziran", "07": "Temmuz", "08": "Ağustos",
-			"09": "Eylül", "10": "Ekim", "11": "Kasım", "12": "Aralık",
-		}
-		if len(p) != 7 {
-			return p
-		}
-		return months[p[5:7]] + " " + p[:4]
-	},
+	"periodLabel": periodLabelText,
 }
 
 func dbPath() string {

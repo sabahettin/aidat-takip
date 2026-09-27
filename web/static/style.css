@@ -97,6 +97,13 @@ h2 { font-size: 1.15rem; margin-top: 32px; }
 .link-btn { background: none; border: none; color: var(--primary); cursor: pointer; font-size: 0.95rem; padding: 0; }
 .link-danger { color: var(--danger); }
 
+.fieldset { border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 12px; }
+.fieldset legend { padding: 0 6px; font-size: 0.85rem; color: var(--muted); }
+
+.wa-link { color: #16a34a; }
+a.btn-primary.wa-link { background: #16a34a; color: #fff !important; }
+a.btn-primary.wa-link:hover { background: #15803d; }
+
 .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; background: var(--card-bg); padding: 16px; border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 8px; }
 
 .muted { color: var(--muted); }

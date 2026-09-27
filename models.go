@@ -3,17 +3,39 @@ package main
 import "time"
 
 type Member struct {
-	ID         int64
-	FullName   string
-	Phone      string
-	Email      string
-	JoinDate   string // YYYY-MM-DD
-	MonthlyFee float64
-	Status     string // "active" | "passive"
-	Note       string
+	ID            int64
+	FullName      string
+	Phone         string
+	Email         string
+	JoinDate      string // YYYY-MM-DD
+	MonthlyFee    float64
+	Status        string // "active" | "passive"
+	Note          string
+	GuardianName  string // opsiyonel: üye reşit değilse veli adı
+	GuardianPhone string // opsiyonel: veli telefonu
 }
 
 func (m Member) IsActive() bool { return m.Status == "active" }
+
+// HasGuardian reports whether a guardian phone was provided.
+func (m Member) HasGuardian() bool { return m.GuardianPhone != "" }
+
+// ReminderPhone returns the number reminders should be sent to: the
+// guardian's if one is on file, otherwise the member's own phone.
+func (m Member) ReminderPhone() string {
+	if m.GuardianPhone != "" {
+		return m.GuardianPhone
+	}
+	return m.Phone
+}
+
+// ReminderContactName returns who the reminder message should address.
+func (m Member) ReminderContactName() string {
+	if m.GuardianName != "" {
+		return m.GuardianName
+	}
+	return m.FullName
+}
 
 type Payment struct {
 	ID       int64
@@ -31,6 +53,19 @@ type DuePeriod struct {
 	Paid     bool
 	PaidDate string
 	Overdue  bool
+}
+
+// periodLabelText renders a "YYYY-MM" period as a human Turkish label, e.g. "Eylül 2026".
+func periodLabelText(p string) string {
+	months := map[string]string{
+		"01": "Ocak", "02": "Şubat", "03": "Mart", "04": "Nisan",
+		"05": "Mayıs", "06": "Haziran", "07": "Temmuz", "08": "Ağustos",
+		"09": "Eylül", "10": "Ekim", "11": "Kasım", "12": "Aralık",
+	}
+	if len(p) != 7 {
+		return p
+	}
+	return months[p[5:7]] + " " + p[:4]
 }
 
 // periodsFromJoinToNow returns "YYYY-MM" strings from joinDate's month up to and including the current month.

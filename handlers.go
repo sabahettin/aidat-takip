@@ -56,6 +56,7 @@ type overdueRow struct {
 	Member  Member
 	Periods []DuePeriod
 	Total   float64
+	WALink  string
 }
 
 func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
@@ -98,7 +99,8 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if len(due) > 0 {
-			overdueRows = append(overdueRows, overdueRow{Member: m, Periods: due, Total: memberTotal})
+			link := whatsAppLink(m.ReminderPhone(), buildReminderMessage(m, due, memberTotal))
+			overdueRows = append(overdueRows, overdueRow{Member: m, Periods: due, Total: memberTotal, WALink: link})
 			overdueTotal += memberTotal
 		}
 	}
@@ -186,13 +188,15 @@ func parseMemberForm(r *http.Request) (Member, error) {
 		joinDate = time.Now().Format("2006-01-02")
 	}
 	return Member{
-		FullName:   name,
-		Phone:      r.FormValue("phone"),
-		Email:      r.FormValue("email"),
-		JoinDate:   joinDate,
-		MonthlyFee: fee,
-		Status:     "active",
-		Note:       r.FormValue("note"),
+		FullName:      name,
+		Phone:         r.FormValue("phone"),
+		Email:         r.FormValue("email"),
+		JoinDate:      joinDate,
+		MonthlyFee:    fee,
+		Status:        "active",
+		Note:          r.FormValue("note"),
+		GuardianName:  r.FormValue("guardian_name"),
+		GuardianPhone: r.FormValue("guardian_phone"),
 	}, nil
 }
 
@@ -230,10 +234,25 @@ func (s *Server) handleMemberDetail(w http.ResponseWriter, r *http.Request) {
 	}
 	schedule := buildDueSchedule(m, payments, time.Now())
 
+	var overdue []DuePeriod
+	var overdueTotal float64
+	for _, dp := range schedule {
+		if dp.Overdue {
+			overdue = append(overdue, dp)
+			overdueTotal += dp.Amount
+		}
+	}
+	var waLink string
+	if len(overdue) > 0 {
+		waLink = whatsAppLink(m.ReminderPhone(), buildReminderMessage(m, overdue, overdueTotal))
+	}
+
 	s.render(w, "member_detail", map[string]any{
 		"Member":        m,
 		"Schedule":      schedule,
 		"CurrentPeriod": time.Now().Format("2006-01"),
+		"OverdueTotal":  overdueTotal,
+		"WALink":        waLink,
 	})
 }
 

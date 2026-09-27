@@ -16,7 +16,9 @@ CREATE TABLE IF NOT EXISTS members (
 	join_date TEXT NOT NULL,
 	monthly_fee REAL NOT NULL DEFAULT 0,
 	status TEXT NOT NULL DEFAULT 'active',
-	note TEXT NOT NULL DEFAULT ''
+	note TEXT NOT NULL DEFAULT '',
+	guardian_name TEXT NOT NULL DEFAULT '',
+	guardian_phone TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS payments (
@@ -43,11 +45,57 @@ func openDB(path string) (*sql.DB, error) {
 		db.Close()
 		return nil, fmt.Errorf("şema oluşturulamadı: %w", err)
 	}
+	if err := migrateSchema(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("veritabanı güncellenemedi: %w", err)
+	}
 	return db, nil
 }
 
+// migrateSchema adds columns introduced after the initial release to
+// existing databases created by older versions of the app.
+func migrateSchema(db *sql.DB) error {
+	rows, err := db.Query("PRAGMA table_info(members)")
+	if err != nil {
+		return err
+	}
+	existing := map[string]bool{}
+	for rows.Next() {
+		var cid int
+		var name, colType string
+		var notNull, pk int
+		var dflt sql.NullString
+		if err := rows.Scan(&cid, &name, &colType, &notNull, &dflt, &pk); err != nil {
+			rows.Close()
+			return err
+		}
+		existing[name] = true
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	alters := []struct {
+		column string
+		ddl    string
+	}{
+		{"guardian_name", "ALTER TABLE members ADD COLUMN guardian_name TEXT NOT NULL DEFAULT ''"},
+		{"guardian_phone", "ALTER TABLE members ADD COLUMN guardian_phone TEXT NOT NULL DEFAULT ''"},
+	}
+	for _, a := range alters {
+		if existing[a.column] {
+			continue
+		}
+		if _, err := db.Exec(a.ddl); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func listMembers(db *sql.DB, includePassive bool) ([]Member, error) {
-	q := "SELECT id, full_name, phone, email, join_date, monthly_fee, status, note FROM members"
+	q := "SELECT id, full_name, phone, email, join_date, monthly_fee, status, note, guardian_name, guardian_phone FROM members"
 	if !includePassive {
 		q += " WHERE status = 'active'"
 	}
@@ -61,7 +109,7 @@ func listMembers(db *sql.DB, includePassive bool) ([]Member, error) {
 	var members []Member
 	for rows.Next() {
 		var m Member
-		if err := rows.Scan(&m.ID, &m.FullName, &m.Phone, &m.Email, &m.JoinDate, &m.MonthlyFee, &m.Status, &m.Note); err != nil {
+		if err := rows.Scan(&m.ID, &m.FullName, &m.Phone, &m.Email, &m.JoinDate, &m.MonthlyFee, &m.Status, &m.Note, &m.GuardianName, &m.GuardianPhone); err != nil {
 			return nil, err
 		}
 		members = append(members, m)
@@ -72,16 +120,16 @@ func listMembers(db *sql.DB, includePassive bool) ([]Member, error) {
 func getMember(db *sql.DB, id int64) (Member, error) {
 	var m Member
 	err := db.QueryRow(
-		"SELECT id, full_name, phone, email, join_date, monthly_fee, status, note FROM members WHERE id = ?",
+		"SELECT id, full_name, phone, email, join_date, monthly_fee, status, note, guardian_name, guardian_phone FROM members WHERE id = ?",
 		id,
-	).Scan(&m.ID, &m.FullName, &m.Phone, &m.Email, &m.JoinDate, &m.MonthlyFee, &m.Status, &m.Note)
+	).Scan(&m.ID, &m.FullName, &m.Phone, &m.Email, &m.JoinDate, &m.MonthlyFee, &m.Status, &m.Note, &m.GuardianName, &m.GuardianPhone)
 	return m, err
 }
 
 func createMember(db *sql.DB, m Member) (int64, error) {
 	res, err := db.Exec(
-		"INSERT INTO members (full_name, phone, email, join_date, monthly_fee, status, note) VALUES (?, ?, ?, ?, ?, ?, ?)",
-		m.FullName, m.Phone, m.Email, m.JoinDate, m.MonthlyFee, m.Status, m.Note,
+		"INSERT INTO members (full_name, phone, email, join_date, monthly_fee, status, note, guardian_name, guardian_phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		m.FullName, m.Phone, m.Email, m.JoinDate, m.MonthlyFee, m.Status, m.Note, m.GuardianName, m.GuardianPhone,
 	)
 	if err != nil {
 		return 0, err
@@ -91,8 +139,8 @@ func createMember(db *sql.DB, m Member) (int64, error) {
 
 func updateMember(db *sql.DB, m Member) error {
 	_, err := db.Exec(
-		"UPDATE members SET full_name = ?, phone = ?, email = ?, join_date = ?, monthly_fee = ?, note = ? WHERE id = ?",
-		m.FullName, m.Phone, m.Email, m.JoinDate, m.MonthlyFee, m.Note, m.ID,
+		"UPDATE members SET full_name = ?, phone = ?, email = ?, join_date = ?, monthly_fee = ?, note = ?, guardian_name = ?, guardian_phone = ? WHERE id = ?",
+		m.FullName, m.Phone, m.Email, m.JoinDate, m.MonthlyFee, m.Note, m.GuardianName, m.GuardianPhone, m.ID,
 	)
 	return err
 }

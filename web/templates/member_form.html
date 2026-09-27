@@ -23,6 +23,16 @@
     <label>Aylık Aidat (₺)
       <input type="number" step="0.01" min="0" name="monthly_fee" value="{{.Member.MonthlyFee}}" required>
     </label>
+    <fieldset class="fieldset">
+      <legend>Veli Bilgisi (opsiyonel)</legend>
+      <p class="muted" style="margin-top:0">Üye reşit değilse doldurun. Doldurulursa ödeme hatırlatmaları üye yerine veliye gönderilir.</p>
+      <label>Veli Adı Soyadı
+        <input type="text" name="guardian_name" value="{{.Member.GuardianName}}">
+      </label>
+      <label>Veli Telefonu
+        <input type="text" name="guardian_phone" value="{{.Member.GuardianPhone}}" placeholder="05xx xxx xx xx">
+      </label>
+    </fieldset>
     <label>Not
       <textarea name="note">{{.Member.Note}}</textarea>
     </label>

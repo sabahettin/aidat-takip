@@ -34,12 +34,15 @@
     <tbody>
       {{range .OverdueRows}}
       <tr>
-        <td><a href="/uyeler/{{.Member.ID}}">{{.Member.FullName}}</a></td>
+        <td><a href="/uyeler/{{.Member.ID}}">{{.Member.FullName}}</a>{{if .Member.HasGuardian}} <span class="muted">(veli: {{.Member.GuardianName}})</span>{{end}}</td>
         <td>
           {{range $i, $p := .Periods}}{{if $i}}, {{end}}{{periodLabel $p.Period}}{{end}}
         </td>
         <td>{{money .Total}}</td>
-        <td><a href="/uyeler/{{.Member.ID}}">Öde</a></td>
+        <td>
+          <a href="/uyeler/{{.Member.ID}}">Öde</a>
+          {{if .WALink}} · <a href="{{.WALink}}" target="_blank" rel="noopener" class="wa-link">WhatsApp'ta Hatırlat</a>{{end}}
+        </td>
       </tr>
       {{end}}
     </tbody>

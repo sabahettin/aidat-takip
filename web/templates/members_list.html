@@ -13,12 +13,13 @@
     <p class="muted">Henüz üye eklenmemiş.</p>
   {{else}}
   <table class="table">
-    <thead><tr><th>Ad Soyad</th><th>Telefon</th><th>Aylık Aidat</th><th>Katılım</th><th>Durum</th></tr></thead>
+    <thead><tr><th>Ad Soyad</th><th>Telefon</th><th>Veli</th><th>Aylık Aidat</th><th>Katılım</th><th>Durum</th></tr></thead>
     <tbody>
       {{range .Members}}
       <tr>
         <td><a href="/uyeler/{{.ID}}">{{.FullName}}</a></td>
         <td>{{.Phone}}</td>
+        <td>{{if .HasGuardian}}{{.GuardianName}}{{else}}<span class="muted">—</span>{{end}}</td>
         <td>{{money .MonthlyFee}}</td>
         <td>{{.JoinDate}}</td>
         <td><span class="badge badge-{{.Status}}">{{if eq .Status "active"}}Aktif{{else}}Pasif{{end}}</span></td>
