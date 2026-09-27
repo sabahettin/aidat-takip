@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -38,6 +39,7 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("POST /uyeler/{id}/geri-yukle", s.handleMemberRestore)
 	mux.HandleFunc("POST /uyeler/{id}/kalici-sil", s.handleMemberPurge)
 	mux.HandleFunc("POST /uyeler/{id}/donem", s.handlePeriodCreate)
+	mux.HandleFunc("POST /uyeler/{id}/aidat-guncelle", s.handleFeeChange)
 	mux.HandleFunc("GET /uyeler/{id}/donem/{pid}/duzenle", s.handlePeriodEditForm)
 	mux.HandleFunc("POST /uyeler/{id}/donem/{pid}/duzenle", s.handlePeriodUpdate)
 	mux.HandleFunc("POST /uyeler/{id}/donem/{pid}/sil", s.handlePeriodDelete)
@@ -207,7 +209,7 @@ func (s *Server) handleMembersList(w http.ResponseWriter, r *http.Request) {
 		rows = append(rows, memberRow{
 			Member:   m,
 			JoinDate: firstJoinDate(periods),
-			Fee:      currentFee(periods),
+			Fee:      currentFee(periods, time.Now()),
 			Ongoing:  hasLatest && latest.IsOngoing(),
 		})
 	}
@@ -319,7 +321,9 @@ func (s *Server) handleMemberDetail(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	schedule, overdue, overdueTotal := memberOverdue(periods, payments, time.Now())
+	now := time.Now()
+	schedule, overdue, overdueTotal := memberOverdue(periods, payments, now)
+	upcoming, hasUpcoming := upcomingPeriod(periods, now)
 
 	var waLink string
 	if len(overdue) > 0 {
@@ -337,8 +341,10 @@ func (s *Server) handleMemberDetail(w http.ResponseWriter, r *http.Request) {
 		"Member":        m,
 		"Periods":       displayPeriods,
 		"Schedule":      schedule,
-		"CurrentPeriod": time.Now().Format("2006-01"),
-		"CurrentFee":    currentFee(periods),
+		"CurrentPeriod": now.Format("2006-01"),
+		"CurrentFee":    currentFee(periods, now),
+		"HasUpcoming":   hasUpcoming,
+		"Upcoming":      upcoming,
 		"FirstJoinDate": firstJoinDate(periods),
 		"OverdueTotal":  overdueTotal,
 		"WALink":        waLink,
@@ -479,6 +485,31 @@ func (s *Server) handlePeriodCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	redirectWithToast(w, r, memberURL, "Yeni dönem eklendi.", "success")
+}
+
+func (s *Server) handleFeeChange(w http.ResponseWriter, r *http.Request) {
+	id, err := idFromPath(r)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	memberURL := "/uyeler/" + strconv.FormatInt(id, 10)
+	if err := r.ParseForm(); err != nil {
+		redirectWithToast(w, r, memberURL, err.Error(), "error")
+		return
+	}
+	effectiveMonth := r.FormValue("effective_month")
+	fee, err := strconv.ParseFloat(r.FormValue("monthly_fee"), 64)
+	if err != nil || fee < 0 {
+		redirectWithToast(w, r, memberURL, "Aidat tutarı geçersiz.", "error")
+		return
+	}
+	if err := applyFeeChange(s.db, id, effectiveMonth, fee); err != nil {
+		redirectWithToast(w, r, memberURL, err.Error(), "error")
+		return
+	}
+	msg := fmt.Sprintf("Aidat %s itibarıyla %.2f ₺ olarak güncellendi.", periodLabelText(effectiveMonth), fee)
+	redirectWithToast(w, r, memberURL, msg, "success")
 }
 
 func (s *Server) handlePeriodEditForm(w http.ResponseWriter, r *http.Request) {

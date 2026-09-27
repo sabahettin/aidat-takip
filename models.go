@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"sort"
 	"time"
 )
@@ -177,15 +178,89 @@ func buildDueSchedule(periods []MembershipPeriod, payments []Payment, now time.T
 	return schedule
 }
 
-// currentFee returns the monthly fee that applies right now: the ongoing
-// period's fee if there is one, otherwise the most recently started
-// period's fee (so forms have a sensible default even for a passive member).
-func currentFee(periods []MembershipPeriod) float64 {
+// currentFee returns the monthly fee that applies on the given day: the fee
+// of the period covering it, otherwise the latest period's fee (so forms have
+// a sensible default even for a passive member or a gap).
+func currentFee(periods []MembershipPeriod, now time.Time) float64 {
+	today := now.Format("2006-01-02")
+	for _, p := range periods {
+		if p.StartDate <= today && (p.EndDate == "" || p.EndDate >= today) {
+			return p.MonthlyFee
+		}
+	}
 	p, ok := latestPeriod(periods)
 	if !ok {
 		return 0
 	}
 	return p.MonthlyFee
+}
+
+// upcomingPeriod returns the earliest period that starts after today, e.g. a
+// fee change scheduled for next month.
+func upcomingPeriod(periods []MembershipPeriod, now time.Time) (MembershipPeriod, bool) {
+	today := now.Format("2006-01-02")
+	var best MembershipPeriod
+	found := false
+	for _, p := range periods {
+		if p.StartDate > today && (!found || p.StartDate < best.StartDate) {
+			best, found = p, true
+		}
+	}
+	return best, found
+}
+
+// feeChangePlan is the set of period rows to rewrite and to add so that a
+// new monthly fee applies from a given month onward.
+type feeChangePlan struct {
+	Update []MembershipPeriod
+	Insert []MembershipPeriod
+}
+
+var errNoPeriodForFeeChange = errors.New("seçilen aydan itibaren geçerli bir üyelik dönemi bulunamadı")
+
+// planFeeChange works out how to make fee apply from effectiveMonth
+// ("YYYY-MM") onward without touching earlier months:
+//   - periods that ended before that month are left alone;
+//   - periods starting in or after that month just get the new fee;
+//   - a period running across that month is split: it now ends on the last
+//     day of the previous month, and a copy with the new fee picks up from
+//     the 1st of effectiveMonth until the original end date.
+//
+// Payments already recorded keep their own amounts; only unpaid months are
+// recalculated with the new fee.
+func planFeeChange(periods []MembershipPeriod, effectiveMonth string, fee float64) (feeChangePlan, error) {
+	month, err := time.Parse("2006-01", effectiveMonth)
+	if err != nil {
+		return feeChangePlan{}, errors.New("geçerlilik ayı hatalı")
+	}
+	effStart := month.Format("2006-01-02")
+	prevEnd := month.AddDate(0, 0, -1).Format("2006-01-02")
+
+	var plan feeChangePlan
+	for _, p := range periods {
+		switch {
+		case p.EndDate != "" && p.EndDate < effStart:
+			continue
+		case p.StartDate >= effStart:
+			p.MonthlyFee = fee
+			plan.Update = append(plan.Update, p)
+		default:
+			next := MembershipPeriod{
+				MemberID:   p.MemberID,
+				StartDate:  effStart,
+				EndDate:    p.EndDate,
+				MonthlyFee: fee,
+				Note:       "Aidat güncellemesi",
+			}
+			p.EndDate = prevEnd
+			plan.Update = append(plan.Update, p)
+			plan.Insert = append(plan.Insert, next)
+		}
+	}
+	if len(plan.Update) == 0 {
+		return feeChangePlan{}, errNoPeriodForFeeChange
+	}
+	return plan, nil
 }
 
 // latestPeriod returns the ongoing period if any, else the one with the most

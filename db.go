@@ -325,6 +325,44 @@ func deletePeriod(db *sql.DB, id int64) error {
 	return err
 }
 
+// applyFeeChange makes fee apply to a member from effectiveMonth ("YYYY-MM")
+// onward, splitting the period that spans that month (see planFeeChange).
+// All row changes happen in one transaction so a failure leaves the
+// member's periods untouched.
+func applyFeeChange(db *sql.DB, memberID int64, effectiveMonth string, fee float64) error {
+	periods, err := listPeriodsForMember(db, memberID)
+	if err != nil {
+		return err
+	}
+	plan, err := planFeeChange(periods, effectiveMonth, fee)
+	if err != nil {
+		return err
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for _, p := range plan.Update {
+		if _, err := tx.Exec(
+			"UPDATE membership_periods SET start_date = ?, end_date = ?, monthly_fee = ?, note = ? WHERE id = ?",
+			p.StartDate, p.EndDate, p.MonthlyFee, p.Note, p.ID,
+		); err != nil {
+			return err
+		}
+	}
+	for _, p := range plan.Insert {
+		if _, err := tx.Exec(
+			"INSERT INTO membership_periods (member_id, start_date, end_date, monthly_fee, note) VALUES (?, ?, ?, ?, ?)",
+			p.MemberID, p.StartDate, p.EndDate, p.MonthlyFee, p.Note,
+		); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
 // ---- Payments ----
 
 func listPaymentsForMember(db *sql.DB, memberID int64) ([]Payment, error) {

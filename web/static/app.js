@@ -45,6 +45,55 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
+  // "Aidat Güncelle": ask from which month the new fee applies and the new
+  // amount, then post them. The server splits the period at that month.
+  document.querySelectorAll('form[data-fee-update]').forEach(function (form) {
+    form.addEventListener('submit', function (e) {
+      if (form.dataset.confirmed || !window.Swal) return;
+      e.preventDefault();
+      Swal.fire({
+        title: 'Aidat Güncelle',
+        html:
+          '<p style="margin:0 0 12px;color:#6b7280;font-size:0.92rem">' +
+          'Seçtiğiniz ay ve sonraki aylar yeni tutarla hesaplanır. ' +
+          'Önceki aylar ve yapılmış ödemeler değişmez.</p>' +
+          '<label class="swal-field">Hangi aydan itibaren geçerli?' +
+          '<input id="swal-fee-month" type="month" class="swal2-input"></label>' +
+          '<label class="swal-field">Yeni aylık aidat (₺)' +
+          '<input id="swal-fee-amount" type="number" step="0.01" min="0" class="swal2-input"></label>',
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Güncelle',
+        cancelButtonText: 'Vazgeç',
+        confirmButtonColor: '#4f46e5',
+        cancelButtonColor: '#6b7280',
+        didOpen: function () {
+          document.getElementById('swal-fee-month').value = form.dataset.currentMonth || '';
+          document.getElementById('swal-fee-amount').value = form.dataset.currentFee || '';
+        },
+        preConfirm: function () {
+          var month = document.getElementById('swal-fee-month').value;
+          var amount = document.getElementById('swal-fee-amount').value;
+          if (!month) {
+            Swal.showValidationMessage('Geçerlilik ayını seçin');
+            return false;
+          }
+          if (amount === '' || Number(amount) < 0) {
+            Swal.showValidationMessage('Geçerli bir tutar girin');
+            return false;
+          }
+          return { month: month, amount: amount };
+        },
+      }).then(function (result) {
+        if (!result.isConfirmed) return;
+        form.querySelector('input[name="effective_month"]').value = result.value.month;
+        form.querySelector('input[name="monthly_fee"]').value = result.value.amount;
+        form.dataset.confirmed = '1';
+        form.submit();
+      });
+    });
+  });
+
   // Turn every data table into a searchable/sortable DataTable, Turkish UI.
   if (window.jQuery && jQuery.fn.DataTable) {
     var turkish = {

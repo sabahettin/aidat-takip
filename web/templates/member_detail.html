@@ -37,6 +37,9 @@
     <div><strong>E-posta:</strong> {{.Member.Email}}</div>
     <div><strong>İlk Katılım:</strong> {{trDate .FirstJoinDate}}</div>
     <div><strong>Güncel Aidat:</strong> {{if .CurrentFee}}{{money .CurrentFee}}{{else}}<span class="muted">—</span>{{end}}</div>
+    {{if .HasUpcoming}}
+    <div><strong>Planlanan Aidat:</strong> {{money .Upcoming.MonthlyFee}} <span class="muted">({{trDate .Upcoming.StartDate}} itibarıyla)</span></div>
+    {{end}}
     {{if .Member.HasGuardian}}
     <div><strong>Veli:</strong> {{.Member.GuardianName}}</div>
     <div><strong>Veli Telefonu:</strong> {{.Member.GuardianPhone}}</div>
@@ -50,8 +53,16 @@
 
   <div class="section-header">
     <h2>Üyelik Dönemleri</h2>
+    {{if and (not .Member.IsDeleted) .Periods}}
+    <form method="post" action="/uyeler/{{.Member.ID}}/aidat-guncelle" data-fee-update
+          data-current-fee="{{.CurrentFee}}" data-current-month="{{.CurrentPeriod}}">
+      <input type="hidden" name="effective_month">
+      <input type="hidden" name="monthly_fee">
+      <button type="submit" class="btn btn-primary btn-sm">Aidat Güncelle</button>
+    </form>
+    {{end}}
   </div>
-  <p class="muted" style="margin-top:-8px">Her dönemin kendi aidat tutarı vardır. Üye ayrılıp geri döndüğünde ya da aidata zam geldiğinde eski dönemi kapatıp yeni bir dönem ekleyin — geçmiş kayıtlar korunur.</p>
+  <p class="muted" style="margin-top:-4px">Zam veya indirim için <strong>Aidat Güncelle</strong>'yi kullanın: seçtiğiniz ay ve sonrası yeni tutarla hesaplanır, önceki aylar ve yapılmış ödemeler değişmez. Üye ayrılıp sonra geri döndüğünde <strong>Yeni Dönem Ekle</strong> ile yeni bir dönem açın — aradaki süre borç sayılmaz.</p>
   <table class="table datatable">
     <thead><tr><th>Başlangıç</th><th>Bitiş</th><th>Aylık Aidat</th><th>Not</th><th></th></tr></thead>
     <tbody>
