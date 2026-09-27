@@ -4,8 +4,16 @@ import "database/sql"
 
 // ---- Groups ----
 
+const groupSelectWithInstructor = `
+	SELECT g.id, g.name, g.note, COALESCE(g.instructor_id, 0), COALESCE(i.full_name, '')
+	FROM groups g LEFT JOIN instructors i ON i.id = g.instructor_id`
+
+func scanGroup(row interface{ Scan(dest ...any) error }, g *Group) error {
+	return row.Scan(&g.ID, &g.Name, &g.Note, &g.InstructorID, &g.InstructorName)
+}
+
 func listGroups(db *sql.DB) ([]Group, error) {
-	rows, err := db.Query("SELECT id, name, note FROM groups ORDER BY name COLLATE NOCASE")
+	rows, err := db.Query(groupSelectWithInstructor + " ORDER BY g.name COLLATE NOCASE")
 	if err != nil {
 		return nil, err
 	}
@@ -14,7 +22,7 @@ func listGroups(db *sql.DB) ([]Group, error) {
 	var groups []Group
 	for rows.Next() {
 		var g Group
-		if err := rows.Scan(&g.ID, &g.Name, &g.Note); err != nil {
+		if err := scanGroup(rows, &g); err != nil {
 			return nil, err
 		}
 		groups = append(groups, g)
@@ -24,12 +32,25 @@ func listGroups(db *sql.DB) ([]Group, error) {
 
 func getGroup(db *sql.DB, id int64) (Group, error) {
 	var g Group
-	err := db.QueryRow("SELECT id, name, note FROM groups WHERE id = ?", id).Scan(&g.ID, &g.Name, &g.Note)
+	row := db.QueryRow(groupSelectWithInstructor+" WHERE g.id = ?", id)
+	err := scanGroup(row, &g)
 	return g, err
 }
 
+// nullableID returns nil for 0 (meaning "unassigned"), otherwise the id
+// itself — for writing an optional foreign key with database/sql.
+func nullableID(id int64) any {
+	if id == 0 {
+		return nil
+	}
+	return id
+}
+
 func createGroup(db *sql.DB, g Group) (int64, error) {
-	res, err := db.Exec("INSERT INTO groups (name, note) VALUES (?, ?)", g.Name, g.Note)
+	res, err := db.Exec(
+		"INSERT INTO groups (name, note, instructor_id) VALUES (?, ?, ?)",
+		g.Name, g.Note, nullableID(g.InstructorID),
+	)
 	if err != nil {
 		return 0, err
 	}
@@ -37,7 +58,10 @@ func createGroup(db *sql.DB, g Group) (int64, error) {
 }
 
 func updateGroup(db *sql.DB, g Group) error {
-	_, err := db.Exec("UPDATE groups SET name = ?, note = ? WHERE id = ?", g.Name, g.Note, g.ID)
+	_, err := db.Exec(
+		"UPDATE groups SET name = ?, note = ?, instructor_id = ? WHERE id = ?",
+		g.Name, g.Note, nullableID(g.InstructorID), g.ID,
+	)
 	return err
 }
 

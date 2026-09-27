@@ -42,10 +42,19 @@ CREATE TABLE IF NOT EXISTS payments (
 	UNIQUE(member_id, period)
 );
 
+CREATE TABLE IF NOT EXISTS instructors (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	full_name TEXT NOT NULL,
+	phone TEXT NOT NULL DEFAULT '',
+	email TEXT NOT NULL DEFAULT '',
+	note TEXT NOT NULL DEFAULT ''
+);
+
 CREATE TABLE IF NOT EXISTS groups (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	name TEXT NOT NULL,
-	note TEXT NOT NULL DEFAULT ''
+	note TEXT NOT NULL DEFAULT '',
+	instructor_id INTEGER DEFAULT NULL
 );
 
 CREATE TABLE IF NOT EXISTS group_members (
@@ -116,6 +125,11 @@ func migrateSchema(db *sql.DB) error {
 	}
 	if err := addMissingColumns(db, "payments", []struct{ column, ddl string }{
 		{"method", "ALTER TABLE payments ADD COLUMN method TEXT NOT NULL DEFAULT 'nakit'"},
+	}); err != nil {
+		return err
+	}
+	if err := addMissingColumns(db, "groups", []struct{ column, ddl string }{
+		{"instructor_id", "ALTER TABLE groups ADD COLUMN instructor_id INTEGER DEFAULT NULL"},
 	}); err != nil {
 		return err
 	}

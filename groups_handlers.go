@@ -33,10 +33,16 @@ func (s *Server) handleGroupsList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleGroupNewForm(w http.ResponseWriter, r *http.Request) {
+	instructors, err := listInstructors(s.db)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
 	s.render(w, "group_form", map[string]any{
-		"IsNew":   true,
-		"Group":   Group{},
-		"FormURL": "/gruplar",
+		"IsNew":       true,
+		"Group":       Group{},
+		"FormURL":     "/gruplar",
+		"Instructors": instructors,
 	})
 }
 
@@ -48,14 +54,16 @@ func parseGroupForm(r *http.Request) (Group, error) {
 	if name == "" {
 		return Group{}, errors.New("grup adı zorunludur")
 	}
-	return Group{Name: name, Note: r.FormValue("note")}, nil
+	instructorID, _ := strconv.ParseInt(r.FormValue("instructor_id"), 10, 64)
+	return Group{Name: name, Note: r.FormValue("note"), InstructorID: instructorID}, nil
 }
 
 func (s *Server) handleGroupCreate(w http.ResponseWriter, r *http.Request) {
 	g, err := parseGroupForm(r)
 	if err != nil {
+		instructors, _ := listInstructors(s.db)
 		s.render(w, "group_form", map[string]any{
-			"IsNew": true, "Group": g, "FormURL": "/gruplar", "Error": err.Error(),
+			"IsNew": true, "Group": g, "FormURL": "/gruplar", "Error": err.Error(), "Instructors": instructors,
 		})
 		return
 	}
@@ -78,10 +86,16 @@ func (s *Server) handleGroupEditForm(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	instructors, err := listInstructors(s.db)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
 	s.render(w, "group_form", map[string]any{
-		"IsNew":   false,
-		"Group":   g,
-		"FormURL": "/gruplar/" + strconv.FormatInt(id, 10) + "/duzenle",
+		"IsNew":       false,
+		"Group":       g,
+		"FormURL":     "/gruplar/" + strconv.FormatInt(id, 10) + "/duzenle",
+		"Instructors": instructors,
 	})
 }
 
@@ -94,8 +108,9 @@ func (s *Server) handleGroupUpdate(w http.ResponseWriter, r *http.Request) {
 	g, err := parseGroupForm(r)
 	if err != nil {
 		g.ID = id
+		instructors, _ := listInstructors(s.db)
 		s.render(w, "group_form", map[string]any{
-			"IsNew": false, "Group": g, "FormURL": "/gruplar/" + strconv.FormatInt(id, 10) + "/duzenle", "Error": err.Error(),
+			"IsNew": false, "Group": g, "FormURL": "/gruplar/" + strconv.FormatInt(id, 10) + "/duzenle", "Error": err.Error(), "Instructors": instructors,
 		})
 		return
 	}

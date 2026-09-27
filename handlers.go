@@ -60,6 +60,13 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("POST /gruplar/{id}/uye/{mid}/cikar", s.handleGroupMemberRemove)
 	mux.HandleFunc("GET /gruplar/{id}/yoklama", s.handleAttendanceForm)
 	mux.HandleFunc("POST /gruplar/{id}/yoklama", s.handleAttendanceSave)
+	mux.HandleFunc("GET /egitmenler", s.handleInstructorsList)
+	mux.HandleFunc("GET /egitmenler/yeni", s.handleInstructorNewForm)
+	mux.HandleFunc("POST /egitmenler", s.handleInstructorCreate)
+	mux.HandleFunc("GET /egitmenler/{id}/duzenle", s.handleInstructorEditForm)
+	mux.HandleFunc("POST /egitmenler/{id}/duzenle", s.handleInstructorUpdate)
+	mux.HandleFunc("POST /egitmenler/{id}/sil", s.handleInstructorDelete)
+	mux.HandleFunc("GET /takvim", s.handleCalendar)
 	return mux
 }
 

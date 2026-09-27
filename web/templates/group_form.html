@@ -11,6 +11,14 @@
     <label>Grup/Sınıf Adı
       <input type="text" name="name" value="{{.Group.Name}}" required placeholder="Örn. Cumartesi 10:00 Minikler">
     </label>
+    <label>Eğitmen (opsiyonel)
+      <select name="instructor_id">
+        <option value="0">Seçilmedi</option>
+        {{range .Instructors}}
+        <option value="{{.ID}}" {{if eq .ID $.Group.InstructorID}}selected{{end}}>{{.FullName}}</option>
+        {{end}}
+      </select>
+    </label>
     <label>Not (opsiyonel)
       <input type="text" name="note" value="{{.Group.Note}}">
     </label>

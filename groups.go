@@ -5,10 +5,15 @@ import "sort"
 // Group is a class/team (Sınıf/Grup) that members can be assigned to, with
 // its own weekly schedule and per-session attendance records.
 type Group struct {
-	ID   int64
-	Name string
-	Note string
+	ID             int64
+	Name           string
+	Note           string
+	InstructorID   int64  // 0 = atanmamış
+	InstructorName string // join'lenmiş, salt gösterim için
 }
+
+// HasInstructor reports whether the group has an instructor assigned.
+func (g Group) HasInstructor() bool { return g.InstructorID != 0 }
 
 // GroupSchedule is one weekly recurring time slot for a group, e.g.
 // "Pazartesi 18:00-19:00".
