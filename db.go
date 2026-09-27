@@ -13,14 +13,20 @@ CREATE TABLE IF NOT EXISTS members (
 	full_name TEXT NOT NULL,
 	phone TEXT NOT NULL DEFAULT '',
 	email TEXT NOT NULL DEFAULT '',
-	join_date TEXT NOT NULL,
-	end_date TEXT NOT NULL DEFAULT '',
-	monthly_fee REAL NOT NULL DEFAULT 0,
 	status TEXT NOT NULL DEFAULT 'active',
 	note TEXT NOT NULL DEFAULT '',
 	guardian_name TEXT NOT NULL DEFAULT '',
 	guardian_phone TEXT NOT NULL DEFAULT '',
 	deleted_at TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS membership_periods (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	member_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+	start_date TEXT NOT NULL,
+	end_date TEXT NOT NULL DEFAULT '',
+	monthly_fee REAL NOT NULL DEFAULT 0,
+	note TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS payments (
@@ -34,6 +40,7 @@ CREATE TABLE IF NOT EXISTS payments (
 	UNIQUE(member_id, period)
 );
 
+CREATE INDEX IF NOT EXISTS idx_periods_member ON membership_periods(member_id);
 CREATE INDEX IF NOT EXISTS idx_payments_member ON payments(member_id);
 CREATE INDEX IF NOT EXISTS idx_payments_period ON payments(period);
 `
@@ -55,44 +62,105 @@ func openDB(path string) (*sql.DB, error) {
 	return db, nil
 }
 
-// migrateSchema adds columns introduced after the initial release to
-// existing databases created by older versions of the app.
+// migrateSchema brings a database created by an older version of the app up
+// to date: it adds columns introduced since, and once (idempotently) turns
+// each member's legacy join_date/end_date/monthly_fee fields into their
+// first membership_periods row, since those columns were removed from new
+// installs in favor of that table.
 func migrateSchema(db *sql.DB) error {
 	if err := addMissingColumns(db, "members", []struct{ column, ddl string }{
 		{"guardian_name", "ALTER TABLE members ADD COLUMN guardian_name TEXT NOT NULL DEFAULT ''"},
 		{"guardian_phone", "ALTER TABLE members ADD COLUMN guardian_phone TEXT NOT NULL DEFAULT ''"},
-		{"end_date", "ALTER TABLE members ADD COLUMN end_date TEXT NOT NULL DEFAULT ''"},
 		{"deleted_at", "ALTER TABLE members ADD COLUMN deleted_at TEXT NOT NULL DEFAULT ''"},
 	}); err != nil {
 		return err
 	}
-	return addMissingColumns(db, "payments", []struct{ column, ddl string }{
+	if err := addMissingColumns(db, "payments", []struct{ column, ddl string }{
 		{"method", "ALTER TABLE payments ADD COLUMN method TEXT NOT NULL DEFAULT 'nakit'"},
-	})
+	}); err != nil {
+		return err
+	}
+	return seedPeriodsFromLegacyMemberFields(db)
 }
 
-func addMissingColumns(db *sql.DB, table string, alters []struct{ column, ddl string }) error {
-	rows, err := db.Query("PRAGMA table_info(" + table + ")")
+// seedPeriodsFromLegacyMemberFields is a one-time, idempotent migration: if
+// the members table still has the old join_date/monthly_fee columns (from
+// before membership_periods existed), it creates a matching period for every
+// member that doesn't have one yet, then leaves the legacy columns alone
+// (harmless, unused going forward).
+func seedPeriodsFromLegacyMemberFields(db *sql.DB) error {
+	hasLegacy, err := hasColumn(db, "members", "join_date")
+	if err != nil || !hasLegacy {
+		return err
+	}
+	rows, err := db.Query(`
+		SELECT m.id, m.join_date, m.end_date, m.monthly_fee
+		FROM members m
+		LEFT JOIN membership_periods p ON p.member_id = m.id
+		WHERE p.id IS NULL AND m.join_date IS NOT NULL AND m.join_date != ''
+	`)
 	if err != nil {
 		return err
 	}
-	existing := map[string]bool{}
+	type legacy struct {
+		id                int64
+		joinDate, endDate string
+		monthlyFee        float64
+	}
+	var toSeed []legacy
+	for rows.Next() {
+		var l legacy
+		if err := rows.Scan(&l.id, &l.joinDate, &l.endDate, &l.monthlyFee); err != nil {
+			rows.Close()
+			return err
+		}
+		toSeed = append(toSeed, l)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, l := range toSeed {
+		if _, err := db.Exec(
+			"INSERT INTO membership_periods (member_id, start_date, end_date, monthly_fee) VALUES (?, ?, ?, ?)",
+			l.id, l.joinDate, l.endDate, l.monthlyFee,
+		); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func hasColumn(db *sql.DB, table, column string) (bool, error) {
+	rows, err := db.Query("PRAGMA table_info(" + table + ")")
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
 	for rows.Next() {
 		var cid int
 		var name, colType string
 		var notNull, pk int
 		var dflt sql.NullString
 		if err := rows.Scan(&cid, &name, &colType, &notNull, &dflt, &pk); err != nil {
-			rows.Close()
+			return false, err
+		}
+		if name == column {
+			return true, nil
+		}
+	}
+	return false, rows.Err()
+}
+
+func addMissingColumns(db *sql.DB, table string, alters []struct{ column, ddl string }) error {
+	existing := map[string]bool{}
+	for _, a := range alters {
+		ok, err := hasColumn(db, table, a.column)
+		if err != nil {
 			return err
 		}
-		existing[name] = true
+		existing[a.column] = ok
 	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		return err
-	}
-
 	for _, a := range alters {
 		if existing[a.column] {
 			continue
@@ -104,10 +172,10 @@ func addMissingColumns(db *sql.DB, table string, alters []struct{ column, ddl st
 	return nil
 }
 
-const memberColumns = "id, full_name, phone, email, join_date, end_date, monthly_fee, status, note, guardian_name, guardian_phone, deleted_at"
+const memberColumns = "id, full_name, phone, email, status, note, guardian_name, guardian_phone, deleted_at"
 
 func scanMember(row interface{ Scan(dest ...any) error }, m *Member) error {
-	return row.Scan(&m.ID, &m.FullName, &m.Phone, &m.Email, &m.JoinDate, &m.EndDate, &m.MonthlyFee, &m.Status, &m.Note, &m.GuardianName, &m.GuardianPhone, &m.DeletedAt)
+	return row.Scan(&m.ID, &m.FullName, &m.Phone, &m.Email, &m.Status, &m.Note, &m.GuardianName, &m.GuardianPhone, &m.DeletedAt)
 }
 
 func listMembers(db *sql.DB, includePassive bool) ([]Member, error) {
@@ -161,8 +229,8 @@ func getMember(db *sql.DB, id int64) (Member, error) {
 
 func createMember(db *sql.DB, m Member) (int64, error) {
 	res, err := db.Exec(
-		"INSERT INTO members (full_name, phone, email, join_date, end_date, monthly_fee, status, note, guardian_name, guardian_phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		m.FullName, m.Phone, m.Email, m.JoinDate, m.EndDate, m.MonthlyFee, m.Status, m.Note, m.GuardianName, m.GuardianPhone,
+		"INSERT INTO members (full_name, phone, email, status, note, guardian_name, guardian_phone) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		m.FullName, m.Phone, m.Email, m.Status, m.Note, m.GuardianName, m.GuardianPhone,
 	)
 	if err != nil {
 		return 0, err
@@ -172,8 +240,8 @@ func createMember(db *sql.DB, m Member) (int64, error) {
 
 func updateMember(db *sql.DB, m Member) error {
 	_, err := db.Exec(
-		"UPDATE members SET full_name = ?, phone = ?, email = ?, join_date = ?, end_date = ?, monthly_fee = ?, note = ?, guardian_name = ?, guardian_phone = ? WHERE id = ?",
-		m.FullName, m.Phone, m.Email, m.JoinDate, m.EndDate, m.MonthlyFee, m.Note, m.GuardianName, m.GuardianPhone, m.ID,
+		"UPDATE members SET full_name = ?, phone = ?, email = ?, note = ?, guardian_name = ?, guardian_phone = ? WHERE id = ?",
+		m.FullName, m.Phone, m.Email, m.Note, m.GuardianName, m.GuardianPhone, m.ID,
 	)
 	return err
 }
@@ -195,12 +263,69 @@ func restoreMember(db *sql.DB, id int64) error {
 	return err
 }
 
-// purgeMember permanently removes a member (and, via cascade, their payments).
+// purgeMember permanently removes a member (and, via cascade, their periods and payments).
 // Only meant to be called from the trash view on an already soft-deleted member.
 func purgeMember(db *sql.DB, id int64) error {
 	_, err := db.Exec("DELETE FROM members WHERE id = ?", id)
 	return err
 }
+
+// ---- Membership periods ----
+
+func listPeriodsForMember(db *sql.DB, memberID int64) ([]MembershipPeriod, error) {
+	rows, err := db.Query(
+		"SELECT id, member_id, start_date, end_date, monthly_fee, note FROM membership_periods WHERE member_id = ? ORDER BY start_date",
+		memberID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var periods []MembershipPeriod
+	for rows.Next() {
+		var p MembershipPeriod
+		if err := rows.Scan(&p.ID, &p.MemberID, &p.StartDate, &p.EndDate, &p.MonthlyFee, &p.Note); err != nil {
+			return nil, err
+		}
+		periods = append(periods, p)
+	}
+	return periods, rows.Err()
+}
+
+func getPeriod(db *sql.DB, id int64) (MembershipPeriod, error) {
+	var p MembershipPeriod
+	err := db.QueryRow(
+		"SELECT id, member_id, start_date, end_date, monthly_fee, note FROM membership_periods WHERE id = ?", id,
+	).Scan(&p.ID, &p.MemberID, &p.StartDate, &p.EndDate, &p.MonthlyFee, &p.Note)
+	return p, err
+}
+
+func createPeriod(db *sql.DB, p MembershipPeriod) (int64, error) {
+	res, err := db.Exec(
+		"INSERT INTO membership_periods (member_id, start_date, end_date, monthly_fee, note) VALUES (?, ?, ?, ?, ?)",
+		p.MemberID, p.StartDate, p.EndDate, p.MonthlyFee, p.Note,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return res.LastInsertId()
+}
+
+func updatePeriod(db *sql.DB, p MembershipPeriod) error {
+	_, err := db.Exec(
+		"UPDATE membership_periods SET start_date = ?, end_date = ?, monthly_fee = ?, note = ? WHERE id = ?",
+		p.StartDate, p.EndDate, p.MonthlyFee, p.Note, p.ID,
+	)
+	return err
+}
+
+func deletePeriod(db *sql.DB, id int64) error {
+	_, err := db.Exec("DELETE FROM membership_periods WHERE id = ?", id)
+	return err
+}
+
+// ---- Payments ----
 
 func listPaymentsForMember(db *sql.DB, memberID int64) ([]Payment, error) {
 	rows, err := db.Query(
@@ -221,6 +346,14 @@ func listPaymentsForMember(db *sql.DB, memberID int64) ([]Payment, error) {
 		payments = append(payments, p)
 	}
 	return payments, rows.Err()
+}
+
+func getPayment(db *sql.DB, id int64) (Payment, error) {
+	var p Payment
+	err := db.QueryRow(
+		"SELECT id, member_id, period, amount, paid_date, method, note FROM payments WHERE id = ?", id,
+	).Scan(&p.ID, &p.MemberID, &p.Period, &p.Amount, &p.PaidDate, &p.Method, &p.Note)
+	return p, err
 }
 
 func recordPayment(db *sql.DB, p Payment) error {
@@ -247,7 +380,7 @@ func paymentsTotalForPeriod(db *sql.DB, period string) (float64, error) {
 	return total.Float64, nil
 }
 
-// monthlyTotals returns the last n periods (oldest first) with their collected totals.
+// monthlyTotals returns the collected totals grouped by period.
 func monthlyTotals(db *sql.DB, periods []string) (map[string]float64, error) {
 	totals := make(map[string]float64, len(periods))
 	rows, err := db.Query("SELECT period, SUM(amount) FROM payments GROUP BY period")

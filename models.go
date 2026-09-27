@@ -1,15 +1,15 @@
 package main
 
-import "time"
+import (
+	"sort"
+	"time"
+)
 
 type Member struct {
 	ID            int64
 	FullName      string
 	Phone         string
 	Email         string
-	JoinDate      string // YYYY-MM-DD
-	EndDate       string // YYYY-MM-DD, opsiyonel: dönemi belirli bir kayıt ise ayrılış/bitiş tarihi
-	MonthlyFee    float64
 	Status        string // "active" | "passive"
 	Note          string
 	GuardianName  string // opsiyonel: üye reşit değilse veli adı
@@ -42,6 +42,35 @@ func (m Member) ReminderContactName() string {
 	return m.FullName
 }
 
+// MembershipPeriod is one continuous stint of membership with its own fee.
+// A member can have several, non-contiguous periods over time: closing one
+// (setting EndDate) and later adding a new one models a member who left and
+// came back, or a fee change, without touching earlier periods or their
+// payment history.
+type MembershipPeriod struct {
+	ID         int64
+	MemberID   int64
+	StartDate  string // YYYY-MM-DD
+	EndDate    string // YYYY-MM-DD, boş = hâlâ devam ediyor
+	MonthlyFee float64
+	Note       string
+}
+
+// IsOngoing reports whether this period has no end date, i.e. is still active.
+func (p MembershipPeriod) IsOngoing() bool { return p.EndDate == "" }
+
+// HasEnded reports whether the period's end date has already passed as of now.
+func (p MembershipPeriod) HasEnded(now time.Time) bool {
+	if p.EndDate == "" {
+		return false
+	}
+	end, err := time.Parse("2006-01-02", p.EndDate)
+	if err != nil {
+		return false
+	}
+	return end.Before(now)
+}
+
 type Payment struct {
 	ID       int64
 	MemberID int64
@@ -62,12 +91,13 @@ func (p Payment) MethodLabel() string {
 
 // DuePeriod represents one month of expected fee for a member and whether it was paid.
 type DuePeriod struct {
-	Period   string // YYYY-MM
-	Amount   float64
-	Paid     bool
-	PaidDate string
-	Method   string
-	Overdue  bool
+	Period    string // YYYY-MM
+	Amount    float64
+	Paid      bool
+	PaymentID int64
+	PaidDate  string
+	Method    string
+	Overdue   bool
 }
 
 // periodLabelText renders a "YYYY-MM" period as a human Turkish label, e.g. "Eylül 2026".
@@ -83,58 +113,111 @@ func periodLabelText(p string) string {
 	return months[p[5:7]] + " " + p[:4]
 }
 
-// periodsInRange returns "YYYY-MM" strings from joinDate's month up to and including cutoff's month.
-func periodsInRange(joinDate string, cutoff time.Time) []string {
-	start, err := time.Parse("2006-01-02", joinDate)
+// monthsInRange returns "YYYY-MM" strings from start's month up to and including cutoff's month.
+func monthsInRange(startDate string, cutoff time.Time) []string {
+	start, err := time.Parse("2006-01-02", startDate)
 	if err != nil {
 		return nil
 	}
 	cur := time.Date(start.Year(), start.Month(), 1, 0, 0, 0, 0, time.UTC)
 	end := time.Date(cutoff.Year(), cutoff.Month(), 1, 0, 0, 0, 0, time.UTC)
-	var periods []string
+	var months []string
 	for !cur.After(end) {
-		periods = append(periods, cur.Format("2006-01"))
+		months = append(months, cur.Format("2006-01"))
 		cur = cur.AddDate(0, 1, 0)
 	}
-	return periods
+	return months
 }
 
-// buildDueSchedule merges the expected periods for a member with their recorded payments.
-// When the member has an end date in the past, dues are only generated up to that
-// date and the final period counts as overdue once unpaid (the member has left);
-// otherwise the current (ongoing) month is shown as "waiting", not overdue.
-func buildDueSchedule(m Member, payments []Payment, now time.Time) []DuePeriod {
+// buildDueSchedule merges every membership period's expected months with the
+// member's recorded payments. Each period contributes only the months it
+// actually covers, so a gap between two periods (left, then rejoined later)
+// never shows up as owed, and a fee change is just a new period starting the
+// month the new price applies. A closed period's last month counts as
+// overdue once unpaid (the member has left); an ongoing period's current
+// month is shown as "waiting" instead.
+func buildDueSchedule(periods []MembershipPeriod, payments []Payment, now time.Time) []DuePeriod {
 	paidByPeriod := make(map[string]Payment, len(payments))
 	for _, p := range payments {
 		paidByPeriod[p.Period] = p
 	}
 
-	cutoff := now
-	memberEnded := false
-	if m.EndDate != "" {
-		if end, err := time.Parse("2006-01-02", m.EndDate); err == nil && end.Before(now) {
-			cutoff = end
-			memberEnded = true
+	byMonth := make(map[string]DuePeriod)
+	for _, period := range periods {
+		cutoff := now
+		ended := false
+		if period.EndDate != "" {
+			if end, err := time.Parse("2006-01-02", period.EndDate); err == nil && end.Before(now) {
+				cutoff = end
+				ended = true
+			}
+		}
+		cutoffMonth := cutoff.Format("2006-01")
+
+		for _, month := range monthsInRange(period.StartDate, cutoff) {
+			dp := DuePeriod{Period: month, Amount: period.MonthlyFee}
+			if p, ok := paidByPeriod[month]; ok {
+				dp.Paid = true
+				dp.PaymentID = p.ID
+				dp.PaidDate = p.PaidDate
+				dp.Amount = p.Amount
+				dp.Method = p.Method
+			} else if month < cutoffMonth || (month == cutoffMonth && ended) {
+				dp.Overdue = true
+			}
+			byMonth[month] = dp
 		}
 	}
-	cutoffPeriod := cutoff.Format("2006-01")
 
-	var schedule []DuePeriod
-	for _, period := range periodsInRange(m.JoinDate, cutoff) {
-		dp := DuePeriod{Period: period, Amount: m.MonthlyFee}
-		if p, ok := paidByPeriod[period]; ok {
-			dp.Paid = true
-			dp.PaidDate = p.PaidDate
-			dp.Amount = p.Amount
-			dp.Method = p.Method
-		} else if period < cutoffPeriod || (period == cutoffPeriod && memberEnded) {
-			dp.Overdue = true
-		}
+	schedule := make([]DuePeriod, 0, len(byMonth))
+	for _, dp := range byMonth {
 		schedule = append(schedule, dp)
 	}
-	// Show most recent period first.
-	for i, j := 0, len(schedule)-1; i < j; i, j = i+1, j-1 {
-		schedule[i], schedule[j] = schedule[j], schedule[i]
-	}
+	sort.Slice(schedule, func(i, j int) bool { return schedule[i].Period > schedule[j].Period })
 	return schedule
+}
+
+// currentFee returns the monthly fee that applies right now: the ongoing
+// period's fee if there is one, otherwise the most recently started
+// period's fee (so forms have a sensible default even for a passive member).
+func currentFee(periods []MembershipPeriod) float64 {
+	p, ok := latestPeriod(periods)
+	if !ok {
+		return 0
+	}
+	return p.MonthlyFee
+}
+
+// latestPeriod returns the ongoing period if any, else the one with the most
+// recent start date.
+func latestPeriod(periods []MembershipPeriod) (MembershipPeriod, bool) {
+	if len(periods) == 0 {
+		return MembershipPeriod{}, false
+	}
+	best := periods[0]
+	for _, p := range periods[1:] {
+		if p.IsOngoing() && !best.IsOngoing() {
+			best = p
+			continue
+		}
+		if p.IsOngoing() == best.IsOngoing() && p.StartDate > best.StartDate {
+			best = p
+		}
+	}
+	return best, true
+}
+
+// firstJoinDate returns the earliest period's start date, for display as
+// "İlk Katılım".
+func firstJoinDate(periods []MembershipPeriod) string {
+	if len(periods) == 0 {
+		return ""
+	}
+	first := periods[0].StartDate
+	for _, p := range periods[1:] {
+		if p.StartDate < first {
+			first = p.StartDate
+		}
+	}
+	return first
 }
