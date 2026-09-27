@@ -278,6 +278,10 @@ h2:first-of-type { margin-top: 24px; }
 .item-note { color: var(--muted); font-size: 0.82rem; margin-top: 3px; }
 .item-actions { display: flex; gap: 6px; flex-shrink: 0; }
 
+.form label.attendance-check { display: flex; flex-direction: row; align-items: center; gap: 10px; cursor: pointer; width: 100%; }
+.attendance-check input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--success); flex-shrink: 0; }
+.attendance-check .item-title { font-weight: 500; }
+
 .disclosure { margin-top: 12px; }
 .disclosure summary { list-style: none; display: inline-block; }
 .disclosure summary::-webkit-details-marker { display: none; }

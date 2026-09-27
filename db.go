@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS members (
 	full_name TEXT NOT NULL,
 	phone TEXT NOT NULL DEFAULT '',
 	email TEXT NOT NULL DEFAULT '',
+	birth_date TEXT NOT NULL DEFAULT '',
 	status TEXT NOT NULL DEFAULT 'active',
 	note TEXT NOT NULL DEFAULT '',
 	guardian_name TEXT NOT NULL DEFAULT '',
@@ -41,9 +42,45 @@ CREATE TABLE IF NOT EXISTS payments (
 	UNIQUE(member_id, period)
 );
 
+CREATE TABLE IF NOT EXISTS groups (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	name TEXT NOT NULL,
+	note TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS group_members (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+	member_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+	UNIQUE(group_id, member_id)
+);
+
+CREATE TABLE IF NOT EXISTS group_schedules (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+	weekday INTEGER NOT NULL,
+	start_time TEXT NOT NULL,
+	end_time TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS attendance (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+	member_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+	session_date TEXT NOT NULL,
+	present INTEGER NOT NULL DEFAULT 0,
+	note TEXT NOT NULL DEFAULT '',
+	UNIQUE(group_id, member_id, session_date)
+);
+
 CREATE INDEX IF NOT EXISTS idx_periods_member ON membership_periods(member_id);
 CREATE INDEX IF NOT EXISTS idx_payments_member ON payments(member_id);
 CREATE INDEX IF NOT EXISTS idx_payments_period ON payments(period);
+CREATE INDEX IF NOT EXISTS idx_group_members_group ON group_members(group_id);
+CREATE INDEX IF NOT EXISTS idx_group_members_member ON group_members(member_id);
+CREATE INDEX IF NOT EXISTS idx_group_schedules_group ON group_schedules(group_id);
+CREATE INDEX IF NOT EXISTS idx_attendance_group_date ON attendance(group_id, session_date);
+CREATE INDEX IF NOT EXISTS idx_attendance_member ON attendance(member_id);
 `
 
 func openDB(path string) (*sql.DB, error) {
@@ -73,6 +110,7 @@ func migrateSchema(db *sql.DB) error {
 		{"guardian_name", "ALTER TABLE members ADD COLUMN guardian_name TEXT NOT NULL DEFAULT ''"},
 		{"guardian_phone", "ALTER TABLE members ADD COLUMN guardian_phone TEXT NOT NULL DEFAULT ''"},
 		{"deleted_at", "ALTER TABLE members ADD COLUMN deleted_at TEXT NOT NULL DEFAULT ''"},
+		{"birth_date", "ALTER TABLE members ADD COLUMN birth_date TEXT NOT NULL DEFAULT ''"},
 	}); err != nil {
 		return err
 	}
@@ -173,10 +211,15 @@ func addMissingColumns(db *sql.DB, table string, alters []struct{ column, ddl st
 	return nil
 }
 
-const memberColumns = "id, full_name, phone, email, status, note, guardian_name, guardian_phone, deleted_at"
+const memberColumns = "id, full_name, phone, email, birth_date, status, note, guardian_name, guardian_phone, deleted_at"
+
+// memberColumnsQualified is memberColumns with the members. prefix, for
+// queries that join members against another table that also has an "id"
+// column (e.g. group_members) and would otherwise be ambiguous.
+const memberColumnsQualified = "members.id, members.full_name, members.phone, members.email, members.birth_date, members.status, members.note, members.guardian_name, members.guardian_phone, members.deleted_at"
 
 func scanMember(row interface{ Scan(dest ...any) error }, m *Member) error {
-	return row.Scan(&m.ID, &m.FullName, &m.Phone, &m.Email, &m.Status, &m.Note, &m.GuardianName, &m.GuardianPhone, &m.DeletedAt)
+	return row.Scan(&m.ID, &m.FullName, &m.Phone, &m.Email, &m.BirthDate, &m.Status, &m.Note, &m.GuardianName, &m.GuardianPhone, &m.DeletedAt)
 }
 
 func listMembers(db *sql.DB, includePassive bool) ([]Member, error) {
@@ -230,8 +273,8 @@ func getMember(db *sql.DB, id int64) (Member, error) {
 
 func createMember(db *sql.DB, m Member) (int64, error) {
 	res, err := db.Exec(
-		"INSERT INTO members (full_name, phone, email, status, note, guardian_name, guardian_phone) VALUES (?, ?, ?, ?, ?, ?, ?)",
-		m.FullName, m.Phone, m.Email, m.Status, m.Note, m.GuardianName, m.GuardianPhone,
+		"INSERT INTO members (full_name, phone, email, birth_date, status, note, guardian_name, guardian_phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+		m.FullName, m.Phone, m.Email, m.BirthDate, m.Status, m.Note, m.GuardianName, m.GuardianPhone,
 	)
 	if err != nil {
 		return 0, err
@@ -241,8 +284,8 @@ func createMember(db *sql.DB, m Member) (int64, error) {
 
 func updateMember(db *sql.DB, m Member) error {
 	_, err := db.Exec(
-		"UPDATE members SET full_name = ?, phone = ?, email = ?, note = ?, guardian_name = ?, guardian_phone = ? WHERE id = ?",
-		m.FullName, m.Phone, m.Email, m.Note, m.GuardianName, m.GuardianPhone, m.ID,
+		"UPDATE members SET full_name = ?, phone = ?, email = ?, birth_date = ?, note = ?, guardian_name = ?, guardian_phone = ? WHERE id = ?",
+		m.FullName, m.Phone, m.Email, m.BirthDate, m.Note, m.GuardianName, m.GuardianPhone, m.ID,
 	)
 	return err
 }
@@ -407,16 +450,6 @@ func recordPayment(db *sql.DB, p Payment) error {
 func deletePayment(db *sql.DB, id int64) error {
 	_, err := db.Exec("DELETE FROM payments WHERE id = ?", id)
 	return err
-}
-
-// paymentsTotalForPeriod returns the sum of all payments recorded for a given YYYY-MM period.
-func paymentsTotalForPeriod(db *sql.DB, period string) (float64, error) {
-	var total sql.NullFloat64
-	err := db.QueryRow("SELECT SUM(amount) FROM payments WHERE period = ?", period).Scan(&total)
-	if err != nil {
-		return 0, err
-	}
-	return total.Float64, nil
 }
 
 // monthlyTotals returns the collected totals grouped by period.

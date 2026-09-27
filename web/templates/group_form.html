@@ -1,0 +1,25 @@
+{{define "group_form"}}
+<!DOCTYPE html>
+<html lang="tr">
+<head><title>{{if .IsNew}}Yeni Grup{{else}}Grup Düzenle{{end}} · Aidat Takip</title>{{template "head" .}}</head>
+<body>
+{{template "nav" .}}
+<main class="container container-medium">
+  <h1>{{if .IsNew}}Yeni Grup{{else}}Grup Düzenle{{end}}</h1>
+  {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+  <form method="post" action="{{.FormURL}}" class="form">
+    <label>Grup/Sınıf Adı
+      <input type="text" name="name" value="{{.Group.Name}}" required placeholder="Örn. Cumartesi 10:00 Minikler">
+    </label>
+    <label>Not (opsiyonel)
+      <input type="text" name="note" value="{{.Group.Note}}">
+    </label>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Kaydet</button>
+      <a href="/gruplar" class="btn btn-secondary">Vazgeç</a>
+    </div>
+  </form>
+</main>
+</body>
+</html>
+{{end}}

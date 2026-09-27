@@ -15,15 +15,12 @@
       <span class="card-label">Pasif Üye</span>
       <span class="card-value">{{.PassiveCount}}</span>
     </div>
-    <div class="card">
-      <span class="card-label">Bu Ay Toplanan ({{periodLabel .CurrentPeriod}})</span>
-      <span class="card-value">{{money .CollectedThisMonth}}</span>
-    </div>
     <div class="card card-warning">
       <span class="card-label">Geciken Ödeme</span>
-      <span class="card-value">{{.OverdueMemberCount}} üye · {{money .OverdueTotal}}</span>
+      <span class="card-value">{{.OverdueMemberCount}} üye</span>
     </div>
   </div>
+  <p class="muted" style="margin-top:-8px">Tahsilat tutarları ve kazanç raporları için <a href="/raporlar">Raporlar</a> sayfasına bakın.</p>
 
   <div class="panel">
     <div class="panel-header"><h2>Ödemesi Geciken Üyeler</h2></div>
@@ -31,7 +28,7 @@
       <p class="muted">Geciken ödeme bulunmuyor. 🎉</p>
     {{else}}
     <table class="table datatable">
-      <thead><tr><th>Üye</th><th>Geciken Aylar</th><th>Toplam Borç</th><th></th></tr></thead>
+      <thead><tr><th>Üye</th><th>Geciken Aylar</th><th></th></tr></thead>
       <tbody>
         {{range .OverdueRows}}
         <tr>
@@ -39,7 +36,6 @@
           <td>
             {{range $i, $p := .Periods}}{{if $i}}, {{end}}{{periodLabel $p.Period}}{{end}}
           </td>
-          <td>{{money .Total}}</td>
           <td class="actions-cell">
             <div class="actions-inner">
               <a href="/uyeler/{{.Member.ID}}" class="btn btn-secondary btn-sm">Öde</a>

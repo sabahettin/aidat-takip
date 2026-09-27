@@ -11,6 +11,7 @@ type Member struct {
 	FullName      string
 	Phone         string
 	Email         string
+	BirthDate     string // YYYY-MM-DD, opsiyonel
 	Status        string // "active" | "passive"
 	Note          string
 	GuardianName  string // opsiyonel: üye reşit değilse veli adı

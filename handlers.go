@@ -47,6 +47,19 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /odeme/{id}/duzenle", s.handlePaymentEditForm)
 	mux.HandleFunc("POST /odeme/{id}/duzenle", s.handlePaymentUpdate)
 	mux.HandleFunc("POST /odeme/{id}/sil", s.handlePaymentDelete)
+	mux.HandleFunc("GET /gruplar", s.handleGroupsList)
+	mux.HandleFunc("GET /gruplar/yeni", s.handleGroupNewForm)
+	mux.HandleFunc("POST /gruplar", s.handleGroupCreate)
+	mux.HandleFunc("GET /gruplar/{id}", s.handleGroupDetail)
+	mux.HandleFunc("GET /gruplar/{id}/duzenle", s.handleGroupEditForm)
+	mux.HandleFunc("POST /gruplar/{id}/duzenle", s.handleGroupUpdate)
+	mux.HandleFunc("POST /gruplar/{id}/sil", s.handleGroupDelete)
+	mux.HandleFunc("POST /gruplar/{id}/ders-saati", s.handleScheduleCreate)
+	mux.HandleFunc("POST /gruplar/{id}/ders-saati/{sid}/sil", s.handleScheduleDelete)
+	mux.HandleFunc("POST /gruplar/{id}/uye-ekle", s.handleGroupMemberAdd)
+	mux.HandleFunc("POST /gruplar/{id}/uye/{mid}/cikar", s.handleGroupMemberRemove)
+	mux.HandleFunc("GET /gruplar/{id}/yoklama", s.handleAttendanceForm)
+	mux.HandleFunc("POST /gruplar/{id}/yoklama", s.handleAttendanceSave)
 	return mux
 }
 
@@ -64,6 +77,10 @@ func idFromPath(r *http.Request) (int64, error) {
 
 func pidFromPath(r *http.Request) (int64, error) {
 	return strconv.ParseInt(r.PathValue("pid"), 10, 64)
+}
+
+func midFromPath(r *http.Request) (int64, error) {
+	return strconv.ParseInt(r.PathValue("mid"), 10, 64)
 }
 
 // redirectWithToast redirects to path, appending query params the front-end
@@ -101,16 +118,8 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	currentPeriod := now.Format("2006-01")
-	collectedThisMonth, err := paymentsTotalForPeriod(s.db, currentPeriod)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-
 	var activeCount, passiveCount int
 	var overdueRows []overdueRow
-	var overdueTotal float64
 	for _, m := range members {
 		if m.IsActive() {
 			activeCount++
@@ -132,7 +141,6 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		if len(due) > 0 {
 			link := whatsAppLink(m.ReminderPhone(), buildReminderMessage(m, due, memberTotal))
 			overdueRows = append(overdueRows, overdueRow{Member: m, Periods: due, Total: memberTotal, WALink: link})
-			overdueTotal += memberTotal
 		}
 	}
 
@@ -140,10 +148,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		"ActiveCount":        activeCount,
 		"PassiveCount":       passiveCount,
 		"TotalCount":         len(members),
-		"CollectedThisMonth": collectedThisMonth,
-		"CurrentPeriod":      currentPeriod,
 		"OverdueRows":        overdueRows,
-		"OverdueTotal":       overdueTotal,
 		"OverdueMemberCount": len(overdueRows),
 	})
 }
@@ -401,6 +406,7 @@ func parseMemberForm(r *http.Request) (Member, error) {
 		FullName:      name,
 		Phone:         r.FormValue("phone"),
 		Email:         r.FormValue("email"),
+		BirthDate:     r.FormValue("birth_date"),
 		Status:        "active",
 		Note:          r.FormValue("note"),
 		GuardianName:  r.FormValue("guardian_name"),

@@ -14,8 +14,11 @@
     <label>Telefon
       <input type="text" name="phone" value="{{.Member.Phone}}">
     </label>
-    <label class="span-2">E-posta
+    <label>E-posta
       <input type="email" name="email" value="{{.Member.Email}}">
+    </label>
+    <label>Doğum Tarihi (opsiyonel)
+      <input type="date" name="birth_date" value="{{.Member.BirthDate}}">
     </label>
     {{if .IsNew}}
     <fieldset class="fieldset span-2">

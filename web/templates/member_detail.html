@@ -39,6 +39,7 @@
         <div class="detail-list">
           <div><strong>Telefon:</strong> {{.Member.Phone}}</div>
           <div><strong>E-posta:</strong> {{.Member.Email}}</div>
+          {{if .Member.BirthDate}}<div><strong>Doğum Tarihi:</strong> {{trDate .Member.BirthDate}}</div>{{end}}
           <div><strong>İlk Katılım:</strong> {{trDate .FirstJoinDate}}</div>
           <div><strong>Güncel Aidat:</strong> {{if .CurrentFee}}{{money .CurrentFee}}{{else}}<span class="muted">—</span>{{end}}</div>
           {{if .HasUpcoming}}

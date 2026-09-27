@@ -36,9 +36,10 @@ var funcMap = template.FuncMap{
 			return "—"
 		}
 	},
-	"trDate":     trDate,
-	"trDateTime": trDateTime,
-	"moneyShort": moneyShort,
+	"trDate":       trDate,
+	"trDateTime":   trDateTime,
+	"moneyShort":   moneyShort,
+	"weekdayLabel": func(d int) string { return weekdayNames[d] },
 }
 
 // trDate renders a "YYYY-MM-DD" value as "GG.AA.YYYY". Empty or unparsable
